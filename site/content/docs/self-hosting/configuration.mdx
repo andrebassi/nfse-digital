@@ -1,0 +1,28 @@
+---
+title: "Configuração"
+description: "Variáveis de ambiente e endpoints da SEFIN."
+---
+
+| Variável | Onde | Função |
+|---|---|---|
+| `NFSE_DB` | `fly.toml` / local | URL `libsql://…` (Turso) ou caminho de arquivo SQLite. Padrão local: `~/.local/share/nfse-digital/nfse.db` |
+| `TURSO_AUTH_TOKEN` | secret Fly · `pass bassi/turso/nfse-auth-token` | token do Turso |
+| `NFSE_CERT_KEY` | secret Fly · `pass bassi/nfse/cert-vault-key` | chave AES-256 do cofre (32 bytes, base64); sela também a senha de app do Gmail. Sem ela (painel local), a senha é selada com `~/.local/share/nfse-digital/secret.key`, gerado na 1ª subida com permissão 600 — perder o arquivo só obriga a informar a senha de app de novo |
+| `NFSE_SMTP_ADDR` | ambiente | servidor SMTP do envio por e-mail; padrão `smtp.gmail.com:587`. Só para teste local (Mailpit no `task email:smoke`) |
+| `NFSE_SIGNUP_EMAILS` | secret Fly | quem pode criar conta (obrigatória com host público) |
+| `NFSE_PUBLIC_HOST` | `fly.toml` | domínio público; liga cookies `Secure` e o filtro de `Host` |
+| `NFSE_LISTEN` | `fly.toml` | endereço de escuta (`0.0.0.0:8080` no Fly; local fica em `127.0.0.1`) |
+| `NFSE_NTFY_URL` | ambiente | tópico do ntfy para os avisos do agendador |
+| `NFSE_PASS_PREFIX` | ambiente | prefixo do A1 no `pass` (padrão `bassi/nfse`) |
+| `NFSE_ACCOUNT` | ambiente | conta usada pela CLI/MCP quando há mais de uma |
+
+Exemplo para desenvolvimento: [`config/dev-account.example.env`](https://github.com/andrebassi/nfse-digital/blob/main/config/dev-account.example.env).
+
+**Endpoints da SEFIN** (`internal/adapters/sefin`):
+
+| Ambiente | SEFIN | ADN |
+|---|---|---|
+| Homologação (produção restrita) | `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` | `https://adn.producaorestrita.nfse.gov.br` |
+| Produção | `https://sefin.nfse.gov.br/SefinNacional` | `https://adn.nfse.gov.br` |
+
+Sem certificado cliente, essas URLs respondem **403** (medido em 01/11/2026) — é o mTLS recusando, não serviço fora do ar.

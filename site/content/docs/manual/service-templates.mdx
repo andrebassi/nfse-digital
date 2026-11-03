@@ -1,0 +1,25 @@
+---
+title: "Modelos de serviço"
+description: "O serviço prestado e como ele é tributado; importar notas antigas."
+---
+
+O modelo guarda o serviço que você presta e como ele é tributado, para a emissão vir preenchida. Menu **Modelos**.
+
+| Campo | Observação |
+|---|---|
+| Nome do modelo | como você reconhece o serviço ("Suporte mensal") |
+| Descrição do serviço | aceita `{mes}` e `{ano}`, trocados pelo mês por extenso e pelo ano da competência ("Suporte técnico - \{mes\}/\{ano\}") |
+| Código do serviço (tributação nacional) | o código da lista nacional (ex.: 01.07.01) |
+| Código municipal, NBS | opcionais |
+| Município da prestação + IBGE | onde o serviço é prestado |
+| Valor padrão | sugerido na emissão; pode mudar na hora |
+| % tributos Simples, Tributação e Retenção do ISSQN | opcionais; vazios, valem os do emitente |
+| Tomador padrão | opcional: o modelo já escolhe o cliente |
+| IBS/CBS (reforma tributária) | indicador de operação, CST e classificação, quando exigidos |
+
+## Importar notas antigas
+
+Há dois jeitos de transformar notas já emitidas em cadastro (tomador + modelo + histórico):
+
+- **Importar notas do Portal Nacional** (Modelos → Importar notas do Portal Nacional): consulta as NFS-e já emitidas pelo CNPJ no Portal Nacional, usando o certificado enviado. É só leitura: nenhuma nota é emitida nem alterada. Antes, libere em **Configurações → Certificado → Consulta ao Portal Nacional → Autorizar consulta** (dá para revogar ali mesmo).
+- **Importar de um XML** (Modelos → botão **Importar de um XML**): envie o XML de uma NFS-e baixado do Portal Nacional.

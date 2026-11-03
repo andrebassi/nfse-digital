@@ -1,0 +1,19 @@
+{
+  "title": "API REST",
+  "description": "Integrar o seu sistema",
+  "root": true,
+  "icon": "Webhook",
+  "pages": [
+    "index",
+    "emit",
+    "query",
+    "cancel",
+    "danfse",
+    "errors",
+    "---Testar a API---",
+    "endpoints",
+    "---Referência---",
+    "[Referência completa (Scalar)](/api-reference)",
+    "[openapi.json](/openapi.json)"
+  ]
+}

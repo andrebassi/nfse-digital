@@ -1,0 +1,26 @@
+{
+  "name": "@andrebassi/nfse-digital",
+  "version": "1.0.0",
+  "description": "SDK TypeScript da API REST do nfse-digital (NFS-e padrão nacional). Gerado do openapi.json com @hey-api/openapi-ts.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrebassi/nfse-digital.git",
+    "directory": "sdk/typescript"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "generate": "openapi-ts -f openapi-ts.config.json",
+    "typecheck": "tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --types node src/index.ts smoke.ts"
+  }
+}

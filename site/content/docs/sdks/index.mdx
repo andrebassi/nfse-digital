@@ -1,0 +1,20 @@
+---
+title: "SDKs"
+description: "Clientes Go, Python e TypeScript gerados do contrato da API."
+---
+
+Os três SDKs são **gerados** do mesmo contrato, o [`openapi.json`](/openapi.json) (OpenAPI 3.1, validado com o CLI do [Scalar](https://github.com/scalar/scalar)), por geradores de código aberto com versão fixa. Cada operação da API vira um método com o nome do `operationId`: `emitInvoice`, `getInvoiceByKey`, `cancelInvoice`…
+
+<Cards>
+  <Card title="Go" href="/docs/sdks/go" description="oapi-codegen · módulo github.com/andrebassi/nfse-digital/sdk/go" />
+  <Card title="Python" href="/docs/sdks/python" description="openapi-python-client · pacote nfse-digital (Python ≥ 3.10)" />
+  <Card title="TypeScript" href="/docs/sdks/typescript" description="@hey-api/openapi-ts · cliente fetch, ESM, sem dependência em runtime" />
+</Cards>
+
+Antes de começar, gere um **token** no painel em **Integrações → API REST**. A URL base é `https://nfse.bassi.engineer/api/v1`. Toda emissão leva uma `idempotency_key` sua — veja [Idempotência](/docs/api#idempotência).
+
+| Linguagem | Gerador (versão fixa) | Instalar |
+|---|---|---|
+| Go | [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) 2.5.1 | `go get github.com/andrebassi/nfse-digital/sdk/go@main` |
+| Python | [openapi-python-client](https://github.com/openapi-generators/openapi-python-client) 0.28.2 | `pip install "nfse-digital @ git+https://github.com/andrebassi/nfse-digital.git#subdirectory=sdk/python"` |
+| TypeScript | [@hey-api/openapi-ts](https://heyapi.dev/) 0.99.0 | copiar `sdk/typescript/src` (ainda não está no npm) |

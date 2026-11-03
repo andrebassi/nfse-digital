@@ -114,6 +114,45 @@ func newAPIFixtureWithRepo(t *testing.T, repo ports.Repository) apiFixture {
 	return apiFixture{fixture: f}
 }
 
+// TestAPICORS: a origem liberada (a documentação) recebe a pré-checagem 204
+// com métodos e cabeçalhos, e o Allow-Origin na resposta de verdade; origem
+// estranha não recebe nada e tem a pré-checagem recusada; sem UseCORS,
+// nenhuma origem passa; páginas fora de /api/v1 não entram no CORS.
+func TestAPICORS(t *testing.T) {
+	f := newAPIFixture(t, nil, nil)
+	request := func(method, path, origin string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, nil)
+		r.Host = "127.0.0.1:8735"
+		r.Header.Set("Origin", origin)
+		r.Header.Set("Authorization", "Bearer "+f.token)
+		w := httptest.NewRecorder()
+		f.handler.ServeHTTP(w, r)
+		return w
+	}
+	if w := request(http.MethodOptions, "/api/v1/account", "https://nfse-docs.bassi.engineer"); w.Code != http.StatusForbidden || w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("sem UseCORS a origem passou: %d", w.Code)
+	}
+	f.server.UseCORS([]string{" https://nfse-docs.bassi.engineer/ ", ""})
+	preflight := request(http.MethodOptions, "/api/v1/invoices", "https://nfse-docs.bassi.engineer")
+	if preflight.Code != http.StatusNoContent || preflight.Header().Get("Access-Control-Allow-Origin") != "https://nfse-docs.bassi.engineer" ||
+		!strings.Contains(preflight.Header().Get("Access-Control-Allow-Headers"), "Authorization") || preflight.Header().Get("Access-Control-Max-Age") != "600" {
+		t.Fatalf("pré-checagem: %d %v", preflight.Code, preflight.Header())
+	}
+	real := request(http.MethodGet, "/api/v1/account", "https://nfse-docs.bassi.engineer")
+	if real.Code != http.StatusOK || real.Header().Get("Access-Control-Allow-Origin") != "https://nfse-docs.bassi.engineer" || real.Header().Get("Vary") != "Origin" {
+		t.Fatalf("resposta: %d %v", real.Code, real.Header())
+	}
+	if w := request(http.MethodGet, "/api/v1/account", "https://atacante.example.com"); w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("origem estranha recebeu Allow-Origin")
+	}
+	if w := request(http.MethodOptions, "/api/v1/account", "https://atacante.example.com"); w.Code != http.StatusForbidden {
+		t.Fatalf("pré-checagem de origem estranha: %d", w.Code)
+	}
+	if w := request(http.MethodGet, "/api/llms.txt", "https://nfse-docs.bassi.engineer"); w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("página fora de /api/v1 entrou no CORS")
+	}
+}
+
 // TestAPIContractMatchesRoutes: toda rota autenticada está no openapi.json e
 // o openapi.json não descreve rota que não existe — nos dois sentidos, para
 // a documentação nunca mentir sobre a API.

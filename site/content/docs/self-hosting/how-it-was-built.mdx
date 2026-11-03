@@ -1,0 +1,125 @@
+---
+title: "Como tudo foi construído"
+description: "A stack de cada camada — binário Go, painel, API, MCP, e-mail, SDKs, este site e a infraestrutura — com as versões medidas e o porquê das escolhas."
+---
+
+O nfse-digital é **um binário Go só** (`nfse`) com quatro portas de entrada sobre o mesmo núcleo — painel web, API REST, servidor MCP e CLI —, mais os SDKs gerados do contrato da API e este site de documentação. Versões medidas em 02/11/2026 (`go.mod`, `package-lock.json`, `fly.toml`).
+
+| Camada | Stack | Onde roda |
+|---|---|---|
+| Núcleo e canais | Go 1.26, arquitetura hexagonal | binário `nfse` |
+| Painel | HTML renderizado no servidor (`html/template`) + Tailwind CSS 4 standalone | o mesmo binário |
+| API REST | `net/http` + contrato OpenAPI 3.1 escrito à mão + Scalar vendorizado | o mesmo binário, `/api/v1` |
+| Agentes | servidor MCP (`modelcontextprotocol/go-sdk`) por stdio e HTTP | o mesmo binário, `/mcp` |
+| Banco | SQLite (local) ou Turso/libSQL (produção) | arquivo local · Turso `sa-east-1` |
+| Produção | imagem distroless no Fly.io | 1 máquina `shared-cpu-1x`, 256 MB, região `gru` |
+| SDKs | Go, Python, TypeScript gerados do contrato | `sdk/` |
+| Documentação | Fumadocs (Next.js) com export estático | Cloudflare Pages |
+
+## Núcleo em Go (hexagonal)
+
+```
+internal/domain     regras puras (DPS, dinheiro, status, e-mail, agendamento) — 100% de cobertura
+internal/app        casos de uso (emitir, cancelar, importar, agendar, enviar e-mail)
+internal/ports      interfaces (Repository, Emitter, Canceller, Mailer, SecretSealer…)
+internal/adapters   o mundo de fora, um pacote por integração
+cmd/nfse            wiring: CLI, serve, mcp
+```
+
+O domínio não importa nada de fora; cada integração entra por um *port*. Assim o painel, a API, o MCP, a CLI e o agendador chamam **o mesmo** `app.Emit` — a guarda de produção e a idempotência valem igual em todos os canais. São 20 pacotes em `internal/`, ~12.300 linhas de Go e ~10.000 de teste.
+
+| Dependência | Versão | Para quê | Pacote |
+|---|---|---|---|
+| Go | 1.26.8 | linguagem e biblioteca padrão (`net/http`, `crypto/tls`, `net/smtp`, `crypto/aes`) | — |
+| `beevik/etree` + `russellhaering/goxmldsig` | 1.8.1 · 1.6.1 | montar a DPS em XML e assinar (XMLDSig) com o certificado A1 | `adapters/dpsxml` |
+| `software.sslmate.com/src/go-pkcs12` | 0.7.4 | abrir o `.pfx` do certificado A1 | `adapters/passcert` |
+| `go-pdf/fpdf` + `skip2/go-qrcode` | 0.9.0 · sem tag (2020) | gerar o DANFSe em PDF com o QR Code (a API do ADN foi suspensa pela NT-008) | `adapters/danfse` |
+| `modelcontextprotocol/go-sdk` | 1.8.0 | servidor MCP | `adapters/mcpserver` |
+| `go-webauthn/webauthn` | 0.18.2 | passkeys | `adapters/web` |
+| `golang.org/x/crypto` | 0.58.0 | `bcrypt` das senhas | `app` |
+| `golang.org/x/text` | 0.43.0 | busca sem acento (normalização Unicode) | `adapters/textsearch` |
+| `modernc.org/sqlite` | 1.61.0 | SQLite em Go puro (sem CGO: binário estático) | `adapters/sqlite` |
+| `turso.tech/database/tursogo-serverless` | — | Turso/libSQL por HTTP, reaproveitando o repositório SQLite | `adapters/turso` |
+
+Sem framework web e sem ORM: o painel é `html/template` com CSRF por processo, e o SQL é escrito à mão, com migrações numeradas (`internal/adapters/sqlite/migrations`).
+
+## Canais
+
+| Canal | Como foi feito |
+|---|---|
+| **Painel** | HTML do servidor, quase sem JavaScript (só passkey, importação do portal, Copiar e a prévia do e-mail). CSS do Tailwind 4 **standalone** (sem Node), embutido no binário. |
+| **API REST** | rotas em `adapters/web/api.go` a partir de uma tabela única; um teste reprova se rota e `openapi.json` divergirem. Idempotência pela `idempotency_key`; CORS só para a origem da documentação. |
+| **Referência no painel** | `/api/docs`: Scalar **vendorizado** no binário (sem CDN), CSP só com script do próprio host. |
+| **MCP** | o mesmo catálogo de ferramentas por stdio (`nfse mcp`) e HTTP (`/mcp`, token Bearer); a skill do agente vai embutida no binário. |
+| **CLI** | `nfse emit`, `cancel`, `danfse`, `schedule`… sobre os mesmos casos de uso. |
+
+## Segurança e segredos
+
+| Segredo | Como é guardado |
+|---|---|
+| Certificado A1 | `.pfx` + senha selados juntos com **AES-256-GCM** (`vaultcert`), chave `NFSE_CERT_KEY`; ou no `pass`, na máquina do dono |
+| Senha de app do Gmail | selada com AES-256-GCM (`secretbox`), dado autenticado = conta + propósito |
+| Tokens de API/MCP | só o SHA-256 no banco; 256 bits aleatórios, prefixo `nf_` |
+| Senhas de login | `bcrypt`; passkeys por WebAuthn |
+
+Detalhes em [Segurança](./security).
+
+## E-mail
+
+`net/smtp` da biblioteca padrão contra o Gmail (`smtp.gmail.com:587`, STARTTLS antes do login), com a senha de app. Mensagem MIME montada à mão (`mime/multipart`, quoted-printable, anexos em base64), recusando quebra de linha em cabeçalho. Sem SendGrid, SES ou Mailgun. Detalhes em [Como o e-mail sai](./email-delivery).
+
+## SDKs
+
+Gerados do mesmo `openapi.json` por geradores **abertos** com versão fixa — o gerador do Scalar é pago (Pro US$ 72/mês + US$ 100/mês por linguagem):
+
+| Linguagem | Gerador |
+|---|---|
+| Go | oapi-codegen 2.5.1 |
+| Python | openapi-python-client 0.28.2 (+ `ruff` para a saída ser determinística) |
+| TypeScript | @hey-api/openapi-ts 0.99.0 |
+
+O contrato é validado com o CLI do Scalar 2.13.2 antes de gerar. Detalhes em [Manter os SDKs](/docs/sdks/maintaining).
+
+## Este site
+
+Mesmo desenho da documentação da Hodle: **Fumadocs** com layout *notebook* e o **Scalar** embutido na referência.
+
+| Peça | Pacote | Versão |
+|---|---|---|
+| Framework | Next.js (App Router, `output: 'export'`) | 16.4.2 |
+| UI | React | 19.3.1 |
+| Documentação | `fumadocs-core` · `fumadocs-ui` | 16.17.10 |
+| Conteúdo MDX | `fumadocs-mdx` | 15.4.10 |
+| Playground por operação | `fumadocs-openapi` | 12.5.8 |
+| Referência | `@scalar/api-reference-react` (tema `kepler`) | 0.9.87 |
+| Busca (no navegador, stemming em português) | `zbsearch`, dentro do fumadocs-core | 4.0.1 |
+| Destaque de código | Shiki | 4.6.0 |
+| Estilo | Tailwind CSS | 4.3.4 |
+
+- O conteúdo sai das fontes que já existiam: o manual (`docs/user-manual.md`, uma página por seção), o README, o `sdk/README.md` e o catálogo do MCP.
+- As páginas de operação com **playground** são geradas do contrato a cada build; o navegador chama a API direto, liberado por CORS (o *proxy* do Fumadocs exigiria servidor).
+- Export estático no **Cloudflare Pages** (projeto `nfse-docs`), domínio na zona `bassi.engineer` do próprio Cloudflare.
+- O código do site é TypeScript por decisão explícita do dono, contra a regra que barra JS/TS novo: é o que o Fumadocs exige.
+
+Estrutura, build e armadilhas do site: [`site/README.md`](https://github.com/andrebassi/nfse-digital/blob/main/site/README.md).
+
+## Infraestrutura
+
+| Peça | Escolha | Por quê |
+|---|---|---|
+| Imagem | build `golang:1.26-alpine` → runtime `gcr.io/distroless/static-debian12:nonroot` | binário estático (CGO desligado), sem shell, usuário não-root; a distroless traz CA e tzdata (TLS mútuo com a SEFIN e fuso de São Paulo) |
+| Execução | Fly.io, 1 máquina `shared-cpu-1x` 256 MB em `gru`, `auto_stop_machines = "suspend"` | dorme sem tráfego e acorda em menos de 1 s |
+| Banco | Turso (libSQL) em `sa-east-1` | sem volume no Fly; mesma região de São Paulo |
+| Domínios | `nfse.bassi.engineer` (CNAME sem proxy: o TLS é do Fly) · `nfse-docs.bassi.engineer` (Cloudflare Pages) | DNS no Cloudflare |
+| Segredos de deploy | `pass` (GPG), passados pelo stdin, nunca em argumento | |
+| Ambiente de desenvolvimento | Nix (`flake.nix`) + Task (`Taskfile.yaml`) | nada de Homebrew nem Docker local |
+
+## Qualidade
+
+| Verificação | O que garante |
+|---|---|
+| `task test:cov` | gate que **reprova**: `domain` 100%, demais pacotes ≥ 90% (linha) |
+| `task api:smoke` | API no binário real: 23 checagens |
+| `task email:smoke` | envio por e-mail contra o Mailpit: 19 checagens, inclusive NFS-e real com DANFSe e XML |
+| `task sdk:smoke` · `sdk:check` | os três SDKs contra o binário real (18 checagens); SDK nunca diverge do contrato |
+| defeitos plantados | cada verificação foi provada nos dois sentidos: com um defeito de propósito ela reprova, sem ele aprova |

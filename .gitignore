@@ -11,3 +11,8 @@
 # clientes, mockups com nomes reais): fica na máquina do dono, nunca no repo
 # público.
 /docs/reference/
+
+# Gerados a cada build do site (scripts/docs-site.sh): contrato com o servers
+# do ambiente do build e as páginas de operação do playground.
+/site/public/openapi.json
+/site/content/docs/api/endpoints/

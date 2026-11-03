@@ -1,0 +1,19 @@
+---
+title: "llms.txt"
+description: "Os guias em texto para um agente integrar sozinho."
+---
+
+Há dois arquivos no padrão [llms.txt](https://llmstxt.org/), com propósitos diferentes:
+
+| Arquivo | Conteúdo | Para |
+|---|---|---|
+| [`https://nfse.bassi.engineer/api/llms.txt`](https://nfse.bassi.engineer/api/llms.txt) | a API REST inteira num arquivo: toda rota, todo status, a ordem certa das chamadas e as regras que o agente não pode quebrar | o agente do **seu sistema** integrar à API |
+| [`/llms.txt`](/llms.txt) deste site | o índice desta documentação, com uma linha por página | um agente navegar por estes guias |
+
+Cada página daqui também existe em Markdown puro: botão **Copiar Markdown** no topo, ou o link **Ver como Markdown**.
+
+## Como usar
+
+- **Colar num chat**: `curl -s https://nfse.bassi.engineer/api/llms.txt | pbcopy` e colar no começo da conversa.
+- **Ferramenta autônoma**: aponte o agente para a URL.
+- **Num painel próprio**: o `llms.txt` sai com as URLs do host que o serve (`<seu-host>/api/llms.txt`).

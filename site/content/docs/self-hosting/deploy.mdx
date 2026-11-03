@@ -1,0 +1,33 @@
+---
+title: "Deploy"
+description: "Publicar a sua instância no Fly.io com banco no Turso."
+---
+
+## Publicar a sua própria instância (Fly.io + Turso)
+
+1. Crie um banco no [Turso](https://turso.tech/) e gere um token (`turso db create`, `turso db tokens create`).
+2. No [`fly.toml`](https://github.com/andrebassi/nfse-digital/blob/main/fly.toml), troque `app`, `NFSE_DB` (a URL `libsql://` do seu banco), `NFSE_PUBLIC_HOST` e o `Host` do health check pelo seu domínio.
+3. Defina os secrets: `fly secrets set TURSO_AUTH_TOKEN=… NFSE_CERT_KEY=… NFSE_SIGNUP_EMAILS=voce@exemplo.com`.
+4. `fly deploy --remote-only` e aponte o domínio (CNAME para `<app>.fly.dev`; `fly certs add <domínio>`).
+
+O painel público **recusa subir** sem `NFSE_SIGNUP_EMAILS` — sem a lista, qualquer pessoa criaria conta. A máquina dorme sem tráfego (`auto_stop_machines = "suspend"`): o agendador só roda acordado, e a emissão vencida sai na primeira rodada depois que alguém abrir o painel (vale até o fim do mês).
+
+## O deploy do dono
+
+O [`scripts/fly-deploy.sh`](https://github.com/andrebassi/nfse-digital/blob/main/scripts/fly-deploy.sh) automatiza os passos acima lendo os segredos do `pass` (caminhos `bassi/...`; adapte para os seus). App e domínio vêm de `NFSE_FLY_APP` e `NFSE_PUBLIC_HOST`, com os do dono como padrão.
+
+```bash
+task deploy     # scripts/fly-deploy.sh, log em /tmp/nfse-fly-deploy.log
+task dns        # uma vez: CNAME nfse.bassi.engineer → nfse-digital.fly.dev
+```
+
+O script é idempotente e roda seis etapas:
+
+1. cria o app `nfse-digital` se não existir;
+2. gera a chave do cofre **só se o arquivo no `pass` não existir** — checar por `pass show` falhando poderia sobrescrever a chave boa quando a aprovação do celular não vem;
+3. importa os secrets (`TURSO_AUTH_TOKEN`, `NFSE_CERT_KEY`, `NFSE_SIGNUP_EMAILS`) pelo stdin, sem argumento nem arquivo;
+4. gera o CSS (embutido no binário);
+5. `fly deploy --remote-only --depot=false --ha=false` (o builder depot estourou prazo em 30/10/2026) e fixa 1 máquina;
+6. emite/confere o certificado TLS de `nfse.bassi.engineer`.
+
+Verificação: `https://nfse.bassi.engineer/static/app.css` e `/login` respondem **200** (medido em 01/11/2026); o health check do Fly consulta `/static/app.css` a cada 30 s.

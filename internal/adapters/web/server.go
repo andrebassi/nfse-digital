@@ -74,6 +74,9 @@ type Server struct {
 	fragments *template.Template
 	// mcpSessions amarra cada sessão MCP (Mcp-Session-Id) à conta que a abriu.
 	mcpSessions sync.Map
+	// corsOrigins são as origens que podem chamar /api/v1 do navegador
+	// (a documentação); vazio = nenhuma.
+	corsOrigins map[string]bool
 	// secure marca os cookies como Secure: ligado com host público (HTTPS
 	// terminado no proxy do Fly); desligado em http://127.0.0.1, onde o
 	// navegador descartaria um cookie Secure.

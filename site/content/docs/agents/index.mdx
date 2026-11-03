@@ -1,0 +1,54 @@
+---
+title: "Conectar um agente"
+description: "Emitir, consultar e cancelar conversando com Claude Code, Claude Desktop ou Codex, pelo servidor MCP."
+---
+
+O nfse-digital tem um **servidor MCP** (Model Context Protocol): o agente de IA chama as [ferramentas](./tools) do emissor como chamaria qualquer ferramenta, e você pede a nota em português — *"emite a nota da Ipê de novembro"*.
+
+Há duas formas de ligar:
+
+| Forma | Endereço | Autenticação | Bom para |
+|---|---|---|---|
+| **HTTP** | `https://nfse.bassi.engineer/mcp` | token Bearer (o mesmo da API) | painel publicado, qualquer máquina |
+| **stdio** | o binário `nfse mcp` na sua máquina | nenhuma (processo local) | painel local |
+
+O painel monta os comandos prontos em **Integrações → Conectar agente**, já com o seu token.
+
+<Tabs items={['Claude Code', 'Claude Desktop', 'Codex']}>
+<Tab value="Claude Code">
+Gere o token em **Integrações → Conectar agente → Gerar token** (ele aparece uma vez só) e rode:
+
+```bash
+claude mcp add --transport http nfse-digital https://nfse.bassi.engineer/mcp \
+  --header "Authorization: Bearer <TOKEN>"
+```
+
+Local, sem token: `claude mcp add nfse-digital -- /caminho/para/bin/nfse mcp`.
+</Tab>
+<Tab value="Claude Desktop">
+O Claude Desktop liga servidores locais pelo arquivo de configuração. Acrescente em `~/Library/Application Support/Claude/claude_desktop_config.json`, dentro de `mcpServers`, e reinicie o app:
+
+```json
+"nfse-digital": { "command": "/caminho/para/bin/nfse", "args": ["mcp"] }
+```
+</Tab>
+<Tab value="Codex">
+```bash
+export NFSE_TOKEN="<TOKEN>"
+codex mcp add nfse-digital --url https://nfse.bassi.engineer/mcp --bearer-token-env-var NFSE_TOKEN
+```
+</Tab>
+</Tabs>
+
+<Callout title="ChatGPT e Grok">
+Os dois conectam servidores MCP a partir da nuvem deles, então precisam de uma URL pública. Funcionam com o painel publicado; com o painel local (`127.0.0.1`), não.
+</Callout>
+
+## Conferir
+
+Peça ao agente *"qual o status da minha conta no nfse?"* e clique em **Testar conexão** no painel: ele mostra qual agente chamou qual ferramenta e quando. A aba **Agentes conectados** guarda o histórico.
+
+## Boas práticas
+
+- Baixe a [skill](./skill) e ponha na pasta de skills do agente: ela o ensina a confirmar com você antes de emitir e a nunca emitir em dobro.
+- Revogue em **Integrações → Tokens de API** o token de um agente que você não usa mais.

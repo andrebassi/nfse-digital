@@ -1,0 +1,22 @@
+---
+title: "Emitir uma nota"
+description: "Emitir uma NFS-e pelo painel e entender o resultado."
+---
+
+Menu **Emitir nota**:
+
+1. **Tomador** — busque e escolha o cliente.
+2. **Serviço e valor** — escolha o **modelo** (o valor e a descrição vêm preenchidos) e confira **Valor (R$)**, **Competência** (o mês a que o serviço se refere) e **Descrição do serviço**.
+3. Confira o **Resumo** à direita e clique em **Emitir nota**.
+   - Em produção, marque a caixa de confirmação: sem ela, nada é enviado à SEFIN.
+
+O resultado aparece no detalhe da nota:
+
+| Estado | Significado |
+|---|---|
+| **autorizada** | a SEFIN aceitou; a nota tem número e chave de acesso |
+| **rejeitada** | a SEFIN recusou; o motivo aparece traduzido em "Retorno da SEFIN". Corrija o cadastro e emita de novo |
+| **pendente** | a SEFIN não deu resposta definitiva (rede, instabilidade). Não emita outra: use **Sincronizar com a SEFIN** ou espere o reenvio |
+| **cancelada** | cancelada na SEFIN ([seção 7](./cancel)) |
+
+Se o tomador tem o **envio automático** ligado ([seção 8](./email)), a nota autorizada já sai por e-mail.

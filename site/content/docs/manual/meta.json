@@ -1,0 +1,23 @@
+{
+  "title": "Manual de uso",
+  "description": "Usar o painel",
+  "root": true,
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "first-access",
+    "issuer",
+    "customers",
+    "service-templates",
+    "emit",
+    "invoices",
+    "cancel",
+    "email",
+    "schedules",
+    "production",
+    "ai-agents",
+    "rest-api",
+    "security",
+    "troubleshooting"
+  ]
+}

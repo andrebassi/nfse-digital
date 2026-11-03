@@ -14,6 +14,8 @@ primary_region = "gru"
   NFSE_DB = "libsql://nfse-andrebassi.aws-sa-east-1.turso.io"
   NFSE_LISTEN = "0.0.0.0:8080"
   NFSE_PUBLIC_HOST = "nfse.bassi.engineer"
+  # A documentação chama a API do navegador (playground e Test Request).
+  NFSE_CORS_ORIGINS = "https://nfse-docs.bassi.engineer"
 
 [http_service]
   internal_port = 8080

@@ -1,0 +1,80 @@
+---
+title: "Visão geral"
+description: "Emitir, listar, consultar e cancelar NFS-e a partir do seu ERP ou sistema de faturamento."
+---
+
+A API REST faz pelo seu sistema o que o painel faz por você: **emitir, listar, consultar e cancelar** notas e baixar o DANFSe. Tomadores e modelos de serviço continuam sendo cadastrados no painel; a API só os lista.
+
+| | |
+|---|---|
+| URL base | `https://nfse.bassi.engineer/api/v1` |
+| Formato | JSON in, JSON out (o DANFSe sai em PDF) |
+| Contrato | [OpenAPI 3.1](/openapi.json) · [referência navegável](/api-reference) |
+| Clientes prontos | [SDKs em Go, Python e TypeScript](/docs/sdks) |
+
+## Autenticação
+
+Toda chamada leva um token Bearer, gerado no painel em **Integrações → API REST → Gerar token**. O token aparece **uma vez só**; guarde-o no cofre do seu sistema.
+
+```http
+Authorization: Bearer nf_…
+```
+
+- É o mesmo token do servidor MCP. Revogar no painel (Integrações → Tokens de API) derruba os dois na hora.
+- Cada token pertence a uma conta: a API só enxerga as notas, tomadores e modelos dela. Nota de outra conta responde **404**, não 403.
+- Token ausente, inválido ou revogado: **401**, sem dizer qual dos três.
+
+## Idempotência
+
+Toda emissão leva uma `idempotency_key` **sua** — use o id da fatura no seu sistema (`fatura-2026-11-0042`). Ela é a chave de idempotência:
+
+- reenviar a **mesma** chave nunca emite outra nota: devolve a que já existe (**200**);
+- se a rede cair no meio, reenvie com a mesma chave — é seguro;
+- você consulta a nota pela chave, sem guardar o id do nfse-digital.
+
+<Callout type="warn" title="Nunca gere a chave na hora">
+Um UUID novo a cada tentativa desliga a proteção: duas tentativas viram duas notas. A chave é o id da cobrança no seu sistema.
+</Callout>
+
+## Produção
+
+Com o emitente em **produção** (nota com valor fiscal), emitir e cancelar exigem `"confirm_production": true` no corpo. Sem isso a API responde **409** e nada é enviado à SEFIN. Em homologação o campo é ignorado.
+
+## Rotas
+
+| Método | Rota | O que faz |
+|---|---|---|
+| `GET` | `/account` | emitente, ambiente e próximo número da DPS |
+| `GET` | `/customers?q=` · `/templates?q=` | tomadores e modelos (só leitura) |
+| `GET` | `/invoices?status=&limit=` | lista notas, mais recente primeiro |
+| `POST` | `/invoices` | [emite](./emit) |
+| `GET` | `/invoices/{id}` · `/invoices/by-key?idempotency_key=` | [consulta](./query) pelo id ou pela chave |
+| `POST` | `/invoices/{id}/cancel` | [cancela](./cancel) na SEFIN |
+| `GET` | `/invoices/{id}/danfse` | [PDF do DANFSe](./danfse) |
+
+Status e corpo de erro de cada rota: [Erros](./errors).
+
+## Ordem de uma integração
+
+<Steps>
+<Step>
+### Confira o token e o ambiente
+
+`GET /account` responde o emitente e se ele está em `homologation` ou `production`.
+</Step>
+<Step>
+### Ache o tomador e o modelo
+
+`GET /customers?q=<nome ou CNPJ>` e `GET /templates` dão o `customer_id` e o `template_id`.
+</Step>
+<Step>
+### Emita com a chave da fatura
+
+`POST /invoices` com `idempotency_key` = id da fatura.
+</Step>
+<Step>
+### Guarde só a sua chave
+
+`GET /invoices/by-key?idempotency_key=…` devolve a nota quando você precisar.
+</Step>
+</Steps>

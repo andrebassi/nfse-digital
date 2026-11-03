@@ -1,0 +1,55 @@
+---
+title: "Instalação"
+description: "Pré-requisitos, onde o certificado A1 fica e como rodar."
+---
+
+## Pré-requisitos
+
+| Ferramenta | Para quê | Como ter |
+|---|---|---|
+| Go 1.26 | compilar o binário | o [`flake.nix`](https://github.com/andrebassi/nfse-digital/blob/main/flake.nix) traz, ou [go.dev/dl](https://go.dev/dl/) |
+| Task | as tasks do [`Taskfile.yaml`](https://github.com/andrebassi/nfse-digital/blob/main/Taskfile.yaml) | flake, ou [taskfile.dev](https://taskfile.dev/installation/) |
+| Tailwind CSS v4 standalone | o CSS do painel (sem Node) | `task css` chama por `nix shell`; sem Nix, o binário `tailwindcss` no `PATH` |
+| openssl, libxml2 | conferir o `.pfx`; validar a DPS no XSD | flake |
+| [`pass`](https://www.passwordstore.org/) | opcional: guardar o certificado fora do banco | só no modo "certificado no pass" |
+
+Com Nix: `nix develop` abre um shell com tudo. Docker não é usado no desenvolvimento — só a imagem do deploy.
+
+## Onde o certificado A1 fica: dois modos
+
+| Modo | Liga com | Como o certificado entra | Bom para |
+|---|---|---|---|
+| **Cofre no banco** (recomendado) | `NFSE_CERT_KEY` definida (32 bytes em base64: `openssl rand -base64 32`) | pelo painel, em Configurações → Certificado; `.pfx` e senha selados juntos com AES-256-GCM | servidor, várias contas, quem não usa `pass` |
+| **pass** | `NFSE_CERT_KEY` vazia | `task cert:import -- "<arquivo>.pfx"` grava em `pass` (prefixo `NFSE_PASS_PREFIX`, padrão `bassi/nfse`) | uma conta só, na máquina do dono |
+
+⚠️ **Guarde a `NFSE_CERT_KEY`** num cofre: perdê-la deixa os certificados selados ilegíveis (cada conta reenvia o `.pfx`) e obriga a informar de novo a senha de app do Gmail.
+
+## Rodar
+
+```bash
+task build                  # gera o CSS e compila bin/nfse
+task serve                  # painel em http://127.0.0.1:8735 (SQLite local, SEFIN real)
+task cert:check             # (modo pass) confere titular e validade do A1
+```
+
+O painel local escuta só em `127.0.0.1`. Banco: `~/.local/share/nfse-digital/nfse.db` (ou `--db`/`NFSE_DB`; uma URL `libsql://` usa o Turso). Passkeys exigem abrir por `http://localhost:8735` (o WebAuthn não aceita IP).
+
+| Task | O que faz |
+|---|---|
+| `css` | gera `static/app.css` com o Tailwind standalone (sem Node) |
+| `build` | `bin/nfse` |
+| `test` | todos os testes |
+| `test:cov` | gate de cobertura (seção 10) |
+| `test:turso` | exclusão de conta contra o Turso **real**, com conta descartável |
+| `e2e` | ponta a ponta no SQLite: cria conta e emitente, emite, reinicia e confere que nada se perdeu |
+| `xsd:check` | valida a DPS de referência no XSD oficial com `xmllint` |
+| `smoke:homologation` | emite R$ 1,00 na homologação com o A1 real (`NFSE_SMOKE_TAKER=<CNPJ do tomador>`) |
+| `serve` | sobe o painel local |
+| `deploy` | publica no Fly (seção 11) |
+| `api:smoke` | API REST no binário real: banco temporário, token gerado pela tela, 23 checagens (sem SEFIN) |
+| `sdk:generate` · `sdk:check` · `sdk:smoke` | regera os SDKs Go/Python/TypeScript do `openapi.json` · reprova SDK fora do contrato · roda os três contra o binário real |
+| `email:smoke` | envio por e-mail no binário real contra o Mailpit: 19 checagens, sem Gmail (`KEEP=1` deixa no ar) |
+| `dns` | CNAME no Cloudflare |
+| `cancel` | cancela pela CLI uma nota do painel publicado (`task cancel -- <id> --production`) |
+| `nfse:xml` | baixa da SEFIN o XML de uma NFS-e pela chave (`task nfse:xml -- <chave> [--production]`) |
+| `diagram` | regenera `docs/diagram` (HTML + PNG claro e escuro) |

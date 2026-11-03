@@ -1,6 +1,6 @@
 // Package smtpmail envia o e-mail da nota pelo SMTP do Gmail com senha de app
 // (verificação em duas etapas ligada na conta Google). Sem OAuth: é o mesmo
-// caminho do SaaS usado antes, e a senha de app pode ser revogada pelo dono a
+// caminho mais comum para Gmail, e a senha de app pode ser revogada pelo dono a
 // qualquer hora em myaccount.google.com/apppasswords.
 package smtpmail
 

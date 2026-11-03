@@ -1,0 +1,20 @@
+---
+title: "Segurança"
+description: "As defesas de cada camada."
+---
+
+| Camada | Mecanismo |
+|---|---|
+| Certificado A1 | `pass` (local) ou blob AES-256-GCM com `.pfx` + senha selados juntos (Fly); decifrado só na memória; mensagens de erro nunca carregam senha nem bytes do certificado |
+| Chave do cofre | `NFSE_CERT_KEY` só em secret do Fly e em `pass bassi/nfse/cert-vault-key`. **Perder a chave = certificados selados ilegíveis** (cada conta reenvia o `.pfx`) |
+| Login | Senha ou passkey (WebAuthn); sessão de 1 dia em memória (reiniciar desloga) |
+| Cadastro | Painel público **exige** `NFSE_SIGNUP_EMAILS`: o processo recusa subir com `NFSE_PUBLIC_HOST` sem a lista |
+| Formulários | Token CSRF aleatório por processo em todo POST |
+| Host | Pedido com `Host` diferente do configurado recebe **403** — por isso `nfse-digital.fly.dev` responde 403 e o health check do Fly manda `Host: nfse.bassi.engineer` |
+| Tokens MCP | Prefixo `nf_`, 256 bits, banco guarda só o SHA-256; revogáveis no painel; erro não diz se o token não existe ou foi revogado |
+| Produção | Guarda única para emitir, reenviar, cancelar e agendar (seção 4) |
+| Corpo MCP | Tamanho limitado, para um token vazado não encher a memória do painel |
+| API REST | Mesmo token do MCP, preso à conta; mesmo filtro de `Host`; corpo limitado a 64 KB; campo desconhecido recusado (400); erro sempre em JSON, sem detalhe interno |
+| Senha de app do Gmail | Testada com login antes de gravar; selada com AES-256-GCM (dado autenticado = conta + propósito); nunca volta para a tela; o cliente SMTP só manda a senha sobre TLS |
+| E-mail | Quebra de linha no assunto ou no nome do remetente é recusada (injeção de cabeçalho); destinatários só como endereço puro |
+| Documentação da API | Scalar vendorizado no binário (sem CDN); CSP da página só aceita script do próprio host; telemetria, "Ask AI" e barra de desenvolvedor desligados |

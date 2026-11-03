@@ -1,0 +1,20 @@
+---
+title: "Como o e-mail sai"
+description: "Gmail por SMTP com senha de app, sem serviço de terceiro."
+---
+
+O envio usa **o próprio Gmail da conta**, sem serviço de terceiro (nada de SendGrid, SES ou Mailgun):
+
+1. o painel conecta em `smtp.gmail.com:587` (pacote [`internal/adapters/smtpmail`](https://github.com/andrebassi/nfse-digital/blob/main/internal/adapters/smtpmail));
+2. sobe o TLS com `STARTTLS` (TLS 1.2 ou maior) **antes** do login — a senha nunca trafega em claro;
+3. faz login (`AUTH PLAIN`) com o endereço e a senha de app;
+4. entrega a mensagem MIME: texto em UTF-8 e os anexos em base64. Prazo de 30 s para a conversa inteira: um servidor mudo não prende a emissão.
+
+| Consequência | Detalhe |
+|---|---|
+| Entregabilidade | o e-mail sai assinado pelo Google (`@gmail.com`), então raramente cai em spam |
+| Cópia em Enviados | o Gmail guarda em **Enviados** o que sai por SMTP: cada nota enviada fica lá |
+| Custo | zero; vale o limite diário de envio do Gmail pessoal (da ordem de centenas de destinatários por dia) |
+| Revogar | apagar a senha de app em [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) corta o envio na hora; a senha normal do Google nunca é usada nem guardada |
+| Onde a senha fica | tabela `email_senders`, selada pela chave do servidor (`NFSE_CERT_KEY`, ou `~/.local/share/nfse-digital/secret.key` no painel local sem ela) |
+| Outro provedor | `NFSE_SMTP_ADDR` troca o servidor (porta 587 com STARTTLS e login): um domínio próprio entra sem mudar o resto |

@@ -1,0 +1,20 @@
+---
+title: "Ferramentas"
+description: "O que o agente pode fazer pelo servidor MCP — o mesmo catálogo no stdio e no HTTP."
+---
+
+| Ferramenta | Age na SEFIN? | Para quê |
+|---|---|---|
+| `account_status` | não | Mostra o emitente, o ambiente (homologação ou produção), a numeração da DPS, a validade do certificado e o que falta configurar. |
+| `list_customers` | não | Lista os tomadores cadastrados; filtra por nome ou documento. |
+| `list_templates` | não | Lista os modelos de serviço (código de tributação, valor e descrição padrão). |
+| `list_invoices` | não | Lista as notas, da mais recente para a mais antiga. |
+| `show_invoice` | não | Mostra uma nota pelo ID, com status, chave de acesso e o erro da SEFIN traduzido. |
+| `emit_invoice` | **sim** | Emite uma NFS-e. Antes de chamar, mostre ao usuário o resumo (tomador, modelo, valor, competência) e espere a confirmação. Repetir a mesma idempotency_key devolve a nota já criada. Resposta pendente: consulte com show_invoice antes de pensar em emitir de novo. |
+| `cancel_invoice` | **sim** | Cancela uma NFS-e autorizada na SEFIN. Irreversível: confirme com o usuário antes. |
+| `download_danfse` | não | Gera o PDF do DANFSe de uma nota autorizada ou cancelada e devolve o caminho do arquivo. |
+| `list_schedules` | não | Lista os agendamentos mensais com as próximas emissões. |
+
+As que agem na SEFIN fazem isso em nome do emitente. Em **produção**, exigem `confirm_production: true` — e o agente só deve mandar isso depois de você confirmar. A [skill](./skill) ensina exatamente esse comportamento.
+
+`emit_invoice` usa a mesma idempotência da API: repetir a `idempotency_key` devolve a nota já criada.

@@ -1,0 +1,20 @@
+---
+title: "DANFSe (PDF)"
+description: "GET /invoices/{id}/danfse — o documento auxiliar da nota, com QR Code."
+---
+
+```bash
+curl -o danfse.pdf https://nfse.bassi.engineer/api/v1/invoices/42/danfse \
+  -H "Authorization: Bearer $NFSE_TOKEN"
+```
+
+Só nota `authorized` ou `cancelled` tem DANFSe (senão **409**). O PDF é gerado pelo nfse-digital a partir do XML da NFS-e — a API de geração do ADN foi suspensa pela NT-008 —, em página única, com o QR Code da consulta pública.
+
+| Status | Quando |
+|---|---|
+| **200** | `application/pdf` |
+| **404** | nota inexistente ou de outra conta |
+| **409** | a nota não está autorizada nem cancelada |
+| **503** | DANFSe desligado neste painel |
+
+No SDK Python, o gerador não tipa resposta em PDF: os bytes vêm em `response.content` de `get_invoice_danf_se.sync_detailed`.

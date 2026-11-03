@@ -148,8 +148,60 @@ func (s *Server) apiRoutes() http.Handler {
 			writeAPI(w, http.StatusForbidden, apiError{Error: "host não permitido"})
 			return
 		}
+		if s.cors(w, r) {
+			return
+		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+// corsMaxAge é quanto o navegador guarda a pré-checagem (10 min): o
+// playground da documentação não repete o OPTIONS a cada clique em Enviar.
+const corsMaxAge = "600"
+
+// UseCORS libera a API para as origens dadas (a documentação em
+// nfse-docs.bassi.engineer, onde o playground e o "Test Request" do Scalar
+// chamam a API direto do navegador). Origem fora da lista não recebe os
+// cabeçalhos e o navegador bloqueia. É seguro porque a API se autentica por
+// token, nunca por cookie: outro site não herda sessão de ninguém.
+func (s *Server) UseCORS(origins []string) {
+	s.corsOrigins = map[string]bool{}
+	for _, origin := range origins {
+		if origin = strings.TrimRight(strings.TrimSpace(origin), "/"); origin != "" {
+			s.corsOrigins[origin] = true
+		}
+	}
+}
+
+// cors põe os cabeçalhos de CORS para origem liberada e responde a
+// pré-checagem (OPTIONS); devolve true quando a resposta já foi escrita.
+// Rotas fora de /api/v1 (docs, llms.txt) não entram: são páginas, não API.
+func (s *Server) cors(w http.ResponseWriter, r *http.Request) bool {
+	if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	allowed := origin != "" && s.corsOrigins[origin]
+	header := w.Header()
+	// Vary: a mesma URL responde diferente por origem; cache intermediário
+	// não pode servir a resposta de uma origem para outra.
+	header.Add("Vary", "Origin")
+	if allowed {
+		header.Set("Access-Control-Allow-Origin", origin)
+		header.Set("Access-Control-Expose-Headers", "Location")
+	}
+	if r.Method != http.MethodOptions {
+		return false
+	}
+	if !allowed {
+		writeAPI(w, http.StatusForbidden, apiError{Error: "origem não liberada para a API"})
+		return true
+	}
+	header.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+	header.Set("Access-Control-Max-Age", corsMaxAge)
+	w.WriteHeader(http.StatusNoContent)
+	return true
 }
 
 // apiAuth exige o token de API (o mesmo do MCP) e põe a conta dele no

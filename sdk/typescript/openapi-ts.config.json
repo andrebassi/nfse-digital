@@ -1,0 +1,5 @@
+{
+  "input": "../../internal/adapters/web/api/openapi.json",
+  "output": { "path": "src", "importFileExtension": ".js" },
+  "plugins": [{ "name": "@hey-api/client-fetch", "baseUrl": false }, "@hey-api/typescript", "@hey-api/sdk"]
+}

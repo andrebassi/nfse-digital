@@ -129,7 +129,9 @@ check "llms.txt com URL absoluta" "$(grep -q "$base/api/v1/invoices" <<<"$llms" 
 
 if [ "${KEEP:-0}" = 1 ]; then
   awk '$6 == "session" {print $7}' "$jar" | tail -1 >"$workdir/session"
-  echo "painel no ar: $base (pid $server_pid) · sessão em $workdir/session"
+  # Token da API gerado pela tela, para testar fora (playground da documentação).
+  (umask 077; printf '%s' "$api_token" >"$workdir/token")
+  echo "painel no ar: $base (pid $server_pid) · sessão em $workdir/session · token em $workdir/token"
 fi
 echo "falhas: $failures"
 exit "$failures"

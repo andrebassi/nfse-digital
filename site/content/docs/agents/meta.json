@@ -1,0 +1,1 @@
+{ "title": "Agentes de IA", "description": "MCP, skill e llms.txt", "root": true, "icon": "Bot", "pages": ["index", "tools", "skill", "llms-txt"] }

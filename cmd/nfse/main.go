@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -139,6 +140,9 @@ func serve(args []string) error {
 		return err
 	}
 	server.UseIntegration(integration())
+	// Origens que podem chamar a API do navegador (o playground da
+	// documentação em nfse-docs.bassi.engineer), separadas por vírgula.
+	server.UseCORS(strings.Split(os.Getenv("NFSE_CORS_ORIGINS"), ","))
 	server.UseDANFSe(func(ctx context.Context, invoice domain.Invoice) ([]byte, string, error) {
 		return renderDANFSe(ctx, database, invoice)
 	})

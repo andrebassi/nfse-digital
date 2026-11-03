@@ -1,4 +1,4 @@
--- Envio da nota por e-mail (Gmail com senha de app), como no SaaS usado antes.
+-- Envio da nota por e-mail (Gmail com senha de app).
 --
 -- email_senders: o Gmail que envia, um por conta. sealed_password é a senha
 -- de app selada com AES-256-GCM pela chave do servidor (NFSE_CERT_KEY no Fly,

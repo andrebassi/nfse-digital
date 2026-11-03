@@ -1,0 +1,9 @@
+# Configuração do oapi-codegen para o SDK Go: cliente com respostas tipadas
+# e os modelos, num pacote só. Regerar: `task sdk:generate`.
+package: nfse
+output: client.gen.go
+generate:
+  client: true
+  models: true
+output-options:
+  skip-prune: false

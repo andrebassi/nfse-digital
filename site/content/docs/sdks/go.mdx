@@ -1,0 +1,28 @@
+---
+title: "Go"
+description: "Cliente com respostas tipadas por status, mais o atalho NewWithToken."
+---
+
+```bash
+go get github.com/andrebassi/nfse-digital/sdk/go@main
+```
+
+```go
+import nfse "github.com/andrebassi/nfse-digital/sdk/go"
+
+client, err := nfse.NewWithToken("https://nfse.bassi.engineer/api/v1", os.Getenv("NFSE_TOKEN"))
+res, err := client.EmitInvoiceWithResponse(ctx, nfse.EmitRequest{
+	IdempotencyKey: "fatura-2026-11-0042", CustomerId: 1, TemplateId: 1,
+})
+switch {
+case res.JSON201 != nil: // nota nova (autorizada ou rejeitada: veja res.JSON201.Status)
+case res.JSON200 != nil: // a chave já tinha nota: é a mesma, nada foi emitido
+case res.JSON202 != nil: // SEFIN sem resposta: consulte pela chave antes de tentar de novo
+case res.JSON422 != nil: // dado inválido: *res.JSON422.Fields diz o campo
+}
+```
+
+- Cada operação tem a versão `...WithResponse`, com um campo por status (`JSON200`, `JSON201`, `JSON404`…); o status vem em `res.StatusCode()`.
+- `NewWithToken` põe o `Authorization: Bearer` em toda chamada; o resto (`client.gen.go`) é gerado e não se edita.
+- Enums viram constantes: `nfse.Authorized`, `nfse.Homologation`, `nfse.ErroEmissao`.
+- O suporte do oapi-codegen a OpenAPI 3.1 é parcial (ele avisa ao gerar); o contrato usa só recursos compatíveis, e o SDK passa no [roteiro de verificação](/docs/sdks/maintaining).

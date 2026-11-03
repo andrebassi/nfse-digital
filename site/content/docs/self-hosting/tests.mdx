@@ -1,0 +1,32 @@
+---
+title: "Testes"
+description: "Gate de cobertura e as verificações ponta a ponta."
+---
+
+[`scripts/coverage-gate.sh`](https://github.com/andrebassi/nfse-digital/blob/main/scripts/coverage-gate.sh) mede cobertura **por pacote** e **reprova** (rc=1) abaixo do piso — `go test -cover` sozinho só imprime e sai 0. Pisos: `internal/domain` **100%**, demais pacotes de `internal/` **90%**. Isentos: `cmd/` (wiring) e `internal/ports` (só interfaces). Prova de falha: `COVERAGE_FLOOR=101 task test:cov` tem que reprovar.
+
+Medido em 02/11/2026 (`task test:cov`, rc=0 — 74 arquivos de teste, 262 funções `Test*`):
+
+| Pacote | Cobertura | Piso |
+|---|---:|---:|
+| `domain` | 100,0% | 100% |
+| `app` | 95,9% | 90% |
+| `adapters/danfse` | 97,8% | 90% |
+| `adapters/dpsxml` | 96,2% | 90% |
+| `adapters/maildocs` | 96,9% | 90% |
+| `adapters/mcpserver` | 94,1% | 90% |
+| `adapters/memory` | 96,1% | 90% |
+| `adapters/nfsexml` | 96,0% | 90% |
+| `adapters/ntfy` | 100,0% | 90% |
+| `adapters/passcert` | 97,3% | 90% |
+| `adapters/secretbox` | 96,2% | 90% |
+| `adapters/sefin` | 98,2% | 90% |
+| `adapters/simulated` | 100,0% | 90% |
+| `adapters/smtpmail` | 95,9% | 90% |
+| `adapters/sqlite` | 93,5% | 90% |
+| `adapters/textsearch` | 100,0% | 90% |
+| `adapters/turso` | 92,9% | 90% |
+| `adapters/vaultcert` | 90,9% | 90% |
+| `adapters/web` | 93,9% | 90% |
+
+Limite declarado: Go não mede branch nativamente; o número é de linha (statements). As decisões são cobertas por testes de tabela que exercitam os dois lados. A SEFIN é simulada nos testes por um servidor TLS falso (`httptest`).

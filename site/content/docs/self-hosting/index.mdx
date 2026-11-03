@@ -1,0 +1,25 @@
+---
+title: "Início rápido"
+description: "Rodar o nfse-digital na sua máquina em quatro comandos."
+---
+
+Pré-requisitos: [Nix](https://nixos.org/download/) (traz Go, Task e Tailwind) **ou** Go 1.26 + [Task](https://taskfile.dev/) + [Tailwind CSS v4 standalone](https://tailwindcss.com/blog/standalone-cli) no `PATH`. Para emitir de verdade: o **certificado A1** (`.pfx`) da empresa.
+
+```bash
+git clone https://github.com/andrebassi/nfse-digital.git
+cd nfse-digital
+mkdir -p ~/.config/nfse-digital                     # chave do cofre: gere UMA vez e guarde
+[ -f ~/.config/nfse-digital/cert.key ] || (umask 077; openssl rand -base64 32 > ~/.config/nfse-digital/cert.key)
+export NFSE_CERT_KEY="$(cat ~/.config/nfse-digital/cert.key)"
+task build          # gera o CSS e compila bin/nfse
+task serve          # painel em http://127.0.0.1:8735 (banco SQLite em ~/.local/share/nfse-digital)
+```
+
+Depois, no navegador:
+
+1. **Crie a conta** e envie o **certificado A1** em Configurações → Certificado.
+2. Preencha o **emitente** em Configurações → Emitente (a conta começa em **homologação**: nada tem valor fiscal).
+3. Cadastre **tomadores** e **modelos de serviço** — ou importe do Portal Nacional.
+4. **Emita a primeira nota** de teste. Passe para produção só quando estiver tudo certo.
+
+O passo a passo de cada tela está no [Manual de uso](/docs/manual). Instalação detalhada e certificado: [Instalação](/docs/self-hosting/install); servidor: [Deploy](/docs/self-hosting/deploy).

@@ -1,0 +1,21 @@
+---
+title: "Agendamentos (nota mensal automática)"
+description: "Nota mensal automática, com aviso na véspera."
+---
+
+Menu **Agendamentos → Novo agendamento**, para emitir a mesma nota todo mês:
+
+| Campo | Regra |
+|---|---|
+| Modelo de serviço · Tomador · Valor padrão | o que sai todo mês |
+| Dia da emissão | todo dia N; de 29 a 31, cai no último dia nos meses mais curtos |
+| Competência | **mês anterior** (o serviço do mês que passou) ou **mês da emissão** (serviço concluído no próprio dia) |
+| Descrição | aceita `{mes}` e `{ano}` |
+| Aviso na véspera | aviso no celular (ntfy) para confirmar, mudar o valor ou pular o mês; sem resposta, emite com o valor vigente |
+| Enviar a nota ao tomador após a emissão | manda por e-mail com o Gmail e o texto da aba Envio por e-mail do tomador. Se o tomador já tem o envio automático, sai **um** e-mail só |
+
+**Pré-visualizar** mostra as próximas datas de emissão e de aviso. A emissão acontece às **03:00 (Brasília)**. Se a SEFIN estiver fora, novas tentativas de hora em hora até o fim do dia, com o mesmo número de DPS (nunca duas notas).
+
+> Na sua máquina, o agendador só roda com `nfse serve --run-schedules`. No painel publicado ele já está ligado.
+
+**Em produção**, um agendamento só emite sozinho se a permissão de produção foi gravada nele — e o formulário do painel **não grava essa permissão**: ela só é dada pela linha de comando (`nfse schedule add --production`). Agendamento criado pelo painel, com o emitente em produção, fica bloqueado e não emite.

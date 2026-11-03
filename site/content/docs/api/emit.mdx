@@ -1,0 +1,112 @@
+---
+title: "Emitir nota"
+description: "POST /invoices — emite pela mesma regra do painel, com idempotência."
+---
+
+`POST /invoices` emite a NFS-e na SEFIN. Campos vazios vêm do modelo de serviço: o valor padrão, a competência de hoje e a descrição com `{mes}` e `{ano}` resolvidos.
+
+<Tabs items={['cURL', 'Go', 'Python', 'TypeScript']}>
+<Tab value="cURL">
+```bash
+curl -X POST https://nfse.bassi.engineer/api/v1/invoices \
+  -H "Authorization: Bearer $NFSE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "fatura-2026-11-0042",
+    "customer_id": 1,
+    "template_id": 1,
+    "amount": "1500.00",
+    "description": "Suporte técnico - novembro"
+  }'
+```
+</Tab>
+<Tab value="Go">
+```go
+import nfse "github.com/andrebassi/nfse-digital/sdk/go"
+
+client, _ := nfse.NewWithToken("https://nfse.bassi.engineer/api/v1", os.Getenv("NFSE_TOKEN"))
+amount := "1500.00"
+res, err := client.EmitInvoiceWithResponse(ctx, nfse.EmitRequest{
+	IdempotencyKey: "fatura-2026-11-0042",
+	CustomerId:     1,
+	TemplateId:     1,
+	Amount:         &amount,
+})
+if res.JSON201 != nil {
+	fmt.Println(res.JSON201.Status, res.JSON201.Id)
+}
+```
+</Tab>
+<Tab value="Python">
+```python
+from nfse_digital import AuthenticatedClient
+from nfse_digital.api.notas import emit_invoice
+from nfse_digital.models import EmitRequest
+
+client = AuthenticatedClient(base_url="https://nfse.bassi.engineer/api/v1", token=os.environ["NFSE_TOKEN"])
+response = emit_invoice.sync_detailed(client=client, body=EmitRequest(
+    idempotency_key="fatura-2026-11-0042", customer_id=1, template_id=1, amount="1500.00"))
+print(response.status_code, response.parsed)
+```
+</Tab>
+<Tab value="TypeScript">
+```ts
+import { createClient } from "./nfse/client/index.js";
+import { emitInvoice } from "./nfse/index.js";
+
+const client = createClient({ baseUrl: "https://nfse.bassi.engineer/api/v1", auth: () => process.env.NFSE_TOKEN! });
+const { data, error, response } = await emitInvoice({
+  client,
+  body: { idempotency_key: "fatura-2026-11-0042", customer_id: 1, template_id: 1, amount: "1500.00" },
+});
+```
+</Tab>
+</Tabs>
+
+## Corpo
+
+| Campo | Obrigatório | Formato | Vazio significa |
+|---|---|---|---|
+| `idempotency_key` | sim | texto, estável por cobrança | 422 |
+| `customer_id` | sim | inteiro (`GET /customers`) | 422 |
+| `template_id` | sim | inteiro (`GET /templates`) | 422 |
+| `amount` | não | `1500.00` ou `1.500,00` | valor padrão do modelo |
+| `competence` | não | `AAAA-MM-DD` | hoje (America/Sao_Paulo) |
+| `description` | não | texto | descrição do modelo, com `{mes}` e `{ano}` resolvidos |
+| `confirm_production` | só em produção | boolean | `false` → 409 com o emitente em produção |
+
+Campo que não está na tabela é recusado com **400**: um `confirmProduction` digitado errado não passa calado.
+
+## Respostas
+
+| Status | Quando | O que fazer |
+|---|---|---|
+| **201** | nota nova; `status` é `authorized` ou `rejected` | rejeitada: leia `error_code` e `message`, corrija o cadastro e emita com **outra** chave |
+| **200** | a `idempotency_key` já tinha nota | nada foi emitido; é a mesma nota da primeira chamada |
+| **202** | SEFIN sem resposta definitiva; `status` = `pending` | [consulte pela chave](./query) antes de qualquer nova tentativa |
+| **409** | emitente em produção sem `confirm_production: true` | peça confirmação a uma pessoa e repita com o campo |
+| **422** | dado inválido; `fields` diz o problema por campo | corrija o campo apontado |
+
+A resposta **201** traz o cabeçalho `Location` com a URL da nota.
+
+```json title="201 Created"
+{
+  "id": 42,
+  "idempotency_key": "fatura-2026-11-0042",
+  "status": "authorized",
+  "status_label": "autorizada",
+  "environment": "homologation",
+  "dps_series": "900",
+  "dps_number": 1001,
+  "nfse_number": "123",
+  "access_key": "35057082…",
+  "amount": "1500.00",
+  "competence": "2026-11-01",
+  "issued_at": "2026-11-02T19:00:00-03:00",
+  "customer_id": 1,
+  "template_id": 1,
+  "description": "Suporte técnico - novembro"
+}
+```
+
+Se o tomador tem o **envio automático por e-mail** ligado, a nota autorizada já sai para ele com o DANFSe e o XML ([Enviar a nota por e-mail](/docs/manual/email)).

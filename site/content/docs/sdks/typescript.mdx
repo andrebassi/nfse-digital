@@ -1,0 +1,25 @@
+---
+title: "TypeScript"
+description: "Cliente fetch tipado, ESM, para Node ≥ 18 e navegador."
+---
+
+O pacote ainda não está no npm: copie [`sdk/typescript/src`](https://github.com/andrebassi/nfse-digital/tree/main/sdk/typescript/src) para o seu projeto (por exemplo em `src/nfse/`) ou use como dependência de workspace.
+
+```ts
+import { createClient } from "./nfse/client/index.js";
+import { emitInvoice, getInvoiceByKey } from "./nfse/index.js";
+
+const client = createClient({ baseUrl: "https://nfse.bassi.engineer/api/v1", auth: () => process.env.NFSE_TOKEN! });
+
+const { data, error, response } = await emitInvoice({
+  client,
+  body: { idempotency_key: "fatura-2026-11-0042", customer_id: 1, template_id: 1 },
+});
+if (response?.status === 422) console.log(error?.fields); // campo inválido
+
+const invoice = await getInvoiceByKey({ client, query: { idempotency_key: "fatura-2026-11-0042" } });
+```
+
+- Toda função devolve `{ data, error, response }`: `data` no sucesso, `error` com o corpo de erro tipado.
+- O cliente **não** tem URL padrão, de propósito: sem `baseUrl`, nenhuma nota vai para o host errado.
+- O token entra por `auth`; o SDK monta o `Authorization: Bearer`.

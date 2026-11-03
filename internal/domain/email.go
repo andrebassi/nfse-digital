@@ -38,8 +38,7 @@ type CustomerEmail struct {
 	AttachXML  bool
 }
 
-// DefaultEmailSubject e DefaultEmailBody são o texto inicial de todo tomador,
-// o mesmo que o SaaS usado antes oferece (medido em 02/11/2026).
+// DefaultEmailSubject e DefaultEmailBody são o texto inicial de todo tomador.
 const (
 	DefaultEmailSubject = "NFS-e nº {numero} - {emitente}"
 	DefaultEmailBody    = "Olá,\n\nSegue em anexo a nota fiscal de serviço nº {numero}, emitida para {tomador}, competência {mesCompetencia}, no valor de {valor}.\n\nA autenticidade da nota pode ser consultada no portal da NFS-e Nacional:\n{linkConsulta}\n\nAtenciosamente,\n{emitente}"
@@ -122,15 +121,14 @@ type EmailValues struct {
 	ConsultURL      string
 }
 
-// EmailPlaceholders são os marcadores aceitos, na ordem da tela. Os nomes
-// são os mesmos do SaaS usado antes: quem migrar o texto de lá não reescreve nada.
+// EmailPlaceholders são os marcadores aceitos, na ordem da tela.
 var EmailPlaceholders = []string{
 	"{numero}", "{valor}", "{competencia}", "{mesCompetencia}", "{dataEmissao}", "{tomador}",
 	"{emitente}", "{cnpjEmitente}", "{descricao}", "{chave}", "{linkConsulta}",
 }
 
 // consultURLPrefix é a consulta pública da NFS-e Nacional pela chave de
-// acesso (tpc=1 = consulta por chave), o mesmo link do SaaS usado antes.
+// acesso (tpc=1 = consulta por chave).
 const consultURLPrefix = "https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave="
 
 // ConsultURL devolve o link público de consulta da nota pela chave.

@@ -1,0 +1,12 @@
+---
+title: "Integrações: API REST"
+description: "Integrar o seu ERP pela API REST."
+---
+
+**Integrações → API REST**, para o seu ERP ou sistema de faturamento emitir sem agente no meio.
+
+- **URL base**: `<endereço do painel>/api/v1` · **Autenticação**: `Authorization: Bearer <TOKEN>` (o mesmo token do MCP; **Gerar token** na própria aba).
+- Abas **Emitir · Consultar · Listar · Cancelar** com o `curl` pronto e o botão **Copiar**.
+- **Idempotência**: toda emissão leva uma `idempotency_key` sua — use o id da fatura. Reenviar a mesma chave nunca emite outra nota, devolve a mesma. Consulte a nota pela chave (`/invoices/by-key?idempotency_key=…`) ou pelo id.
+- Tomadores e modelos continuam sendo cadastrados no painel; a API só os lista.
+- **Documentação da API** (referência navegável com exemplos em curl, Node.js e Python), **OpenAPI** (contrato para importar no Postman/Insomnia) e **llms.txt** (o guia para o agente do seu sistema integrar sozinho) ficam nos botões da aba.

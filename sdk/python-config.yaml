@@ -1,0 +1,9 @@
+# Configuração do openapi-python-client para o SDK Python. Regerar: `task sdk:generate`.
+project_name_override: nfse-digital
+package_name_override: nfse_digital
+# Ordena os imports e formata: sem isto, a ordem dos imports muda entre duas
+# rodadas com o mesmo contrato (o gerador itera um conjunto sem ordem) e o
+# sdk:check acusaria diferença onde não há.
+post_hooks:
+  - "ruff check . --select I --fix-only --quiet"
+  - "ruff format . --quiet"

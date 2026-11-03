@@ -1,0 +1,16 @@
+---
+title: "Skill do agente"
+description: "O SKILL.md que ensina o agente a emitir com segurança."
+---
+
+A skill é um arquivo `SKILL.md` embutido no binário — o mesmo texto que acompanha o servidor MCP, então nunca diverge dele. Baixe em **Integrações → Conectar agente → Baixar skill.md** ou imprima com `nfse skill`, e coloque na pasta de skills do agente (no Claude Code: `~/.claude/skills/nfse-digital/SKILL.md`).
+
+O que ela ensina:
+
+1. **Confirmar antes de emitir**: mostrar o resumo (tomador, modelo, valor, competência) e esperar o "sim".
+2. **Nunca emitir duas vezes**: uma `idempotency_key` estável por pedido; resposta pendente se consulta com `show_invoice` antes de pensar em emitir de novo.
+3. **Produção só com confirmação explícita**: `confirm_production: true` depois que você confirmar.
+4. **Cancelamento**: os três motivos, a justificativa de 15 a 255 caracteres e o prazo do município.
+5. **Erros comuns da SEFIN**, já traduzidos.
+
+O texto completo está no repositório: [`internal/adapters/mcpserver/SKILL.md`](https://github.com/andrebassi/nfse-digital/blob/main/internal/adapters/mcpserver/SKILL.md).

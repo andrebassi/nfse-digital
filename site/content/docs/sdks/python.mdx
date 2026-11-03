@@ -1,0 +1,28 @@
+---
+title: "Python"
+description: "Funções síncronas e assíncronas por operação, com modelos tipados."
+---
+
+```bash
+pip install "nfse-digital @ git+https://github.com/andrebassi/nfse-digital.git#subdirectory=sdk/python"
+# ou
+uv add "nfse-digital @ git+https://github.com/andrebassi/nfse-digital.git#subdirectory=sdk/python"
+```
+
+```python
+import os
+from nfse_digital import AuthenticatedClient
+from nfse_digital.api.notas import emit_invoice, get_invoice_by_key
+from nfse_digital.models import EmitRequest
+
+client = AuthenticatedClient(base_url="https://nfse.bassi.engineer/api/v1", token=os.environ["NFSE_TOKEN"])
+response = emit_invoice.sync_detailed(client=client, body=EmitRequest(
+    idempotency_key="fatura-2026-11-0042", customer_id=1, template_id=1))
+print(response.status_code, response.parsed)   # 201 → Invoice; 422 → Error com .fields
+
+invoice = get_invoice_by_key.sync(client=client, idempotency_key="fatura-2026-11-0042")
+```
+
+- Os módulos seguem as tags do contrato: `api.notas`, `api.cadastros`, `api.conta`.
+- Cada operação tem `sync`, `sync_detailed`, `asyncio` e `asyncio_detailed`; as `_detailed` trazem `status_code` e `headers`.
+- Limite conhecido: o gerador não tipa resposta em PDF. No `get_invoice_danf_se.sync_detailed`, o PDF vem em `response.content`.

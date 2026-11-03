@@ -1,0 +1,17 @@
+---
+title: "Problemas comuns"
+description: "Sintomas, causas e o que fazer."
+---
+
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| Menu travado, só abre o certificado | conta sem certificado A1 | Configurações → Certificado |
+| "Emitente ainda não configurado" | emitente sem CNPJ | Configurações → Emitente |
+| Nota **rejeitada** | a SEFIN recusou um dado (código, município, alíquota) | leia o "Retorno da SEFIN" traduzido, corrija e emita de novo |
+| Nota **pendente** | a SEFIN não respondeu | não emita de novo; **Sincronizar com a SEFIN** |
+| Emissão em produção recusada | falta a confirmação | marque a caixa (painel) ou mande `confirm_production: true` (API, agente) |
+| "o Gmail recusou o login" | senha normal no lugar da senha de app, ou senha revogada | gere outra em myaccount.google.com/apppasswords ([seção 8](./email).1) |
+| E-mail não chegou | destinatário errado, spam ou falha registrada | veja o histórico no detalhe da nota; confira o Para; use **Enviar por e-mail** |
+| Cancelamento recusado por prazo | passou o prazo do município | peça o cancelamento à prefeitura do município de incidência |
+| Passkey não aparece | painel aberto por IP | abra por `http://localhost:8735` |
+| Agente não conecta | token revogado ou comando antigo | gere token novo e rode o comando da tela de novo; **Testar conexão** |

@@ -1,0 +1,16 @@
+{
+  "title": "Self-hosting",
+  "description": "Instalar, configurar e publicar",
+  "root": true,
+  "icon": "Server",
+  "pages": [
+    "index",
+    "install",
+    "configuration",
+    "email-delivery",
+    "security",
+    "deploy",
+    "tests",
+    "how-it-was-built"
+  ]
+}

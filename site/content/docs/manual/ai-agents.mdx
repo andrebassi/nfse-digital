@@ -1,0 +1,19 @@
+---
+title: "Integrações: agentes de IA"
+description: "Emitir conversando com Claude Code, Claude Desktop ou Codex."
+---
+
+Menu **Integrações → Conectar agente**: emita, consulte e cancele conversando com um agente.
+
+| Agente | Como liga |
+|---|---|
+| **Claude Code** | **Gerar token** (aparece uma única vez) e rodar o comando `claude mcp add --transport http nfse-digital …` que a tela monta com o token |
+| **Claude Desktop** | trecho para o arquivo `claude_desktop_config.json`, mostrado na tela (servidor local, sem token) |
+| **Codex** | `export NFSE_TOKEN=…` + `codex mcp add nfse-digital --url …`, mostrado na tela |
+| ChatGPT · Grok | conectam a partir da nuvem deles e precisam de uma URL pública; a tela explica |
+
+Depois, opcionalmente, **Baixar skill.md** e pôr na pasta de skills do agente: ela ensina o agente a confirmar com você antes de emitir e a nunca emitir em dobro.
+
+Para conferir: peça ao agente *"qual o status da minha conta no nfse?"* e clique em **Testar conexão**.
+
+Outras abas: **Tokens de API** (listar e revogar), **Agentes conectados** (quem falou por último e com qual ferramenta) e **Ferramentas** (o que o agente pode fazer; as marcadas **SEFIN** agem em seu nome e, em produção, exigem `confirm_production`).

@@ -1,0 +1,16 @@
+---
+title: "Manter os SDKs"
+description: "Regerar, conferir e provar os três SDKs contra o binário real."
+---
+
+| Task | O que faz |
+|---|---|
+| `task sdk:generate` | valida o contrato com o CLI do Scalar e regera os três SDKs |
+| `task sdk:check` | regera e **reprova** se o SDK versionado divergir do contrato (para o CI) |
+| `task sdk:smoke` | roda o mesmo roteiro nos três SDKs contra o binário real: banco temporário, token gerado pela tela, sem SEFIN |
+
+O roteiro do `sdk:smoke` tem seis checagens por linguagem — conta, tomadores, lista de notas, emissão sem chave (422 com o campo), consulta de chave desconhecida (404) e token errado (401) —, 18 no total.
+
+Mudou a API? Atualize o `openapi.json` (um teste do pacote `web` reprova se rota e contrato divergirem), rode `task sdk:generate` e versione junto.
+
+O gerador Python roda com `ruff` depois de gerar (ordena os imports e formata): sem isso, duas rodadas com o mesmo contrato davam arquivos diferentes, e o `sdk:check` acusaria diferença onde não há.

@@ -1,0 +1,79 @@
+---
+title: "Consultar e listar"
+description: "Pela sua chave, pelo id ou numa lista filtrada."
+---
+
+## Pela sua chave
+
+O jeito recomendado: a `idempotency_key` que você mandou na emissão (o id da fatura). Você não precisa guardar o id do nfse-digital.
+
+<Tabs items={['cURL', 'Go', 'Python', 'TypeScript']}>
+<Tab value="cURL">
+```bash
+curl "https://nfse.bassi.engineer/api/v1/invoices/by-key?idempotency_key=fatura-2026-11-0042" \
+  -H "Authorization: Bearer $NFSE_TOKEN"
+```
+</Tab>
+<Tab value="Go">
+```go
+res, err := client.GetInvoiceByKeyWithResponse(ctx, &nfse.GetInvoiceByKeyParams{IdempotencyKey: "fatura-2026-11-0042"})
+if res.JSON200 != nil {
+	fmt.Println(res.JSON200.Status)
+}
+```
+</Tab>
+<Tab value="Python">
+```python
+from nfse_digital.api.notas import get_invoice_by_key
+
+invoice = get_invoice_by_key.sync(client=client, idempotency_key="fatura-2026-11-0042")
+```
+</Tab>
+<Tab value="TypeScript">
+```ts
+import { getInvoiceByKey } from "./nfse/index.js";
+
+const { data } = await getInvoiceByKey({ client, query: { idempotency_key: "fatura-2026-11-0042" } });
+```
+</Tab>
+</Tabs>
+
+Chave desconhecida (ou de outra conta): **404**.
+
+## Pelo id
+
+```bash
+curl https://nfse.bassi.engineer/api/v1/invoices/42 -H "Authorization: Bearer $NFSE_TOKEN"
+```
+
+## Listar
+
+```bash
+curl "https://nfse.bassi.engineer/api/v1/invoices?status=authorized&limit=50" -H "Authorization: Bearer $NFSE_TOKEN"
+```
+
+| Parâmetro | Valores | Padrão |
+|---|---|---|
+| `status` | `pending` · `authorized` · `rejected` · `cancelled` | todos |
+| `limit` | 1 a 100 | 20 |
+
+Fora disso: **400**. A lista vem da mais recente para a mais antiga, em `{"invoices": [...]}`.
+
+## O objeto da nota
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `id` | inteiro | id no nfse-digital |
+| `idempotency_key` | texto | a chave da emissão (ausente em nota emitida pelo painel ou importada) |
+| `status` | `pending` · `authorized` · `rejected` · `cancelled` | para máquina |
+| `status_label` | texto | para pessoa: pendente, autorizada, rejeitada, cancelada |
+| `environment` | `homologation` · `production` | |
+| `dps_series` · `dps_number` | texto · inteiro | numeração da DPS enviada |
+| `nfse_number` · `access_key` | texto | só quando autorizada; a chave tem 50 dígitos |
+| `amount` | texto | ponto decimal, duas casas: `1500.00` |
+| `competence` | `AAAA-MM-DD` | |
+| `issued_at` | RFC 3339 | |
+| `customer_id` · `template_id` | inteiro | |
+| `description` | texto | |
+| `error_code` | texto | código da SEFIN, como `E0039` |
+| `message` | texto | erro da SEFIN traduzido, ou aviso de pendência |

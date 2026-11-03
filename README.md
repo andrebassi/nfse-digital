@@ -16,7 +16,7 @@ Em produção: **<https://nfse.bassi.engineer>** — uma máquina no Fly.io (reg
 - **Agendamentos**: nota mensal recorrente às 03:00, com aviso na véspera (ntfy) e novas tentativas se a SEFIN estiver fora.
 - **Envio da nota por e-mail** pelo seu Gmail (senha de app), automático ou manual, com o DANFSe e o XML anexados.
 - **Agente de IA (MCP)**: emitir, consultar e cancelar conversando com Claude Code, Claude Desktop ou Codex.
-- **API REST** com idempotência, contrato OpenAPI 3.1, documentação navegável (Scalar) e `llms.txt`.
+- **API REST** com idempotência, contrato OpenAPI 3.1, documentação navegável (Scalar), `llms.txt` e **SDKs em Go, Python e TypeScript**.
 - **Várias contas** no mesmo painel, cada uma com o próprio emitente, certificado e dados.
 - **Guarda de produção**: nenhuma nota com valor fiscal sai sem confirmação explícita, em nenhum canal.
 
@@ -47,7 +47,7 @@ O passo a passo de cada tela está no **[manual de uso](docs/user-manual.md)**. 
 
 ## Sumário
 
-- [Recursos](#recursos) · [Início rápido](#início-rápido) · [Manual de uso](docs/user-manual.md)
+- [Recursos](#recursos) · [Início rápido](#início-rápido) · [Manual de uso](docs/user-manual.md) · [Site de documentação](https://nfse-docs.bassi.engineer)
 
 1. [O problema que ele resolve](#1-o-problema-que-ele-resolve)
 2. [Glossário rápido](#2-glossário-rápido)
@@ -288,6 +288,17 @@ Três rotas públicas, sem token:
 | `/api/v1/openapi.json` | contrato OpenAPI 3.1 escrito à mão ([`internal/adapters/web/api/openapi.json`](internal/adapters/web/api/openapi.json)); `servers` sai com o endereço do painel que serve o arquivo. Um teste confere rota × contrato nos dois sentidos |
 | `/api/llms.txt` | guia para agente, ver abaixo |
 
+#### SDKs (Go, Python, TypeScript)
+
+Clientes gerados do mesmo `openapi.json` por geradores abertos com versão fixa: **Go** (oapi-codegen), **Python** (openapi-python-client) e **TypeScript** (@hey-api/openapi-ts). Instalação, exemplos e limites de cada um: **[`sdk/README.md`](sdk/README.md)**.
+
+```bash
+go get github.com/andrebassi/nfse-digital/sdk/go@main
+pip install "nfse-digital @ git+https://github.com/andrebassi/nfse-digital.git#subdirectory=sdk/python"
+```
+
+`task sdk:check` reprova se o SDK versionado divergir do contrato; `task sdk:smoke` roda o mesmo roteiro nos três contra o binário real (18 checagens).
+
 #### llms.txt da API
 
 [`/api/llms.txt`](https://nfse.bassi.engineer/api/llms.txt) segue a convenção [llms.txt](https://llmstxt.org/): um arquivo texto que um modelo lê para integrar um sistema a esta API **sem ler mais nada**.
@@ -368,6 +379,7 @@ nfse skill                            # imprime a skill do agente
 | `NFSE_DB` | `fly.toml` / local | URL `libsql://…` (Turso) ou caminho de arquivo SQLite. Padrão local: `~/.local/share/nfse-digital/nfse.db` |
 | `TURSO_AUTH_TOKEN` | secret Fly · `pass bassi/turso/nfse-auth-token` | token do Turso |
 | `NFSE_CERT_KEY` | secret Fly · `pass bassi/nfse/cert-vault-key` | chave AES-256 do cofre (32 bytes, base64); sela também a senha de app do Gmail. Sem ela (painel local), a senha é selada com `~/.local/share/nfse-digital/secret.key`, gerado na 1ª subida com permissão 600 — perder o arquivo só obriga a informar a senha de app de novo |
+| `NFSE_CORS_ORIGINS` | `fly.toml` | origens (separadas por vírgula) que podem chamar `/api/v1` do navegador: o playground e o "Test Request" da documentação. Só a origem exata recebe `Access-Control-Allow-Origin`; o resto tem a pré-checagem recusada (403). Seguro porque a API se autentica por token, nunca por cookie |
 | `NFSE_SMTP_ADDR` | ambiente | servidor SMTP do envio por e-mail; padrão `smtp.gmail.com:587`. Só para teste local (Mailpit no `task email:smoke`) |
 | `NFSE_SIGNUP_EMAILS` | secret Fly | quem pode criar conta (obrigatória com host público) |
 | `NFSE_PUBLIC_HOST` | `fly.toml` | domínio público; liga cookies `Secure` e o filtro de `Host` |
@@ -433,6 +445,7 @@ O painel local escuta só em `127.0.0.1`. Banco: `~/.local/share/nfse-digital/nf
 | `serve` | sobe o painel local |
 | `deploy` | publica no Fly (seção 11) |
 | `api:smoke` | API REST no binário real: banco temporário, token gerado pela tela, 23 checagens (sem SEFIN) |
+| `sdk:generate` · `sdk:check` · `sdk:smoke` | regera os SDKs Go/Python/TypeScript do `openapi.json` · reprova SDK fora do contrato · roda os três contra o binário real |
 | `email:smoke` | envio por e-mail no binário real contra o Mailpit: 19 checagens, sem Gmail (`KEEP=1` deixa no ar) |
 | `dns` | CNAME no Cloudflare |
 | `cancel` | cancela pela CLI uma nota do painel publicado (`task cancel -- <id> --production`) |
@@ -515,6 +528,7 @@ Verificação: `https://nfse.bassi.engineer/static/app.css` e `/login` respondem
 
 | Documento | Conteúdo |
 |---|---|
+| [nfse-docs.bassi.engineer](https://nfse-docs.bassi.engineer) | **site de documentação** (Fumadocs, fonte em [`site/`](site)): manual, API REST com **playground** por operação, SDKs, agentes de IA, self-hosting e a referência Scalar. `task docs:dev` · `docs:build` · `docs:deploy` (Cloudflare Pages). **Como tudo foi construído** (stack de cada camada, versões, infraestrutura): [nfse-docs.bassi.engineer/docs/self-hosting/how-it-was-built](https://nfse-docs.bassi.engineer/docs/self-hosting/how-it-was-built); detalhes do site em [`site/README.md`](site/README.md) |
 | [`docs/user-manual.md`](docs/user-manual.md) | **manual de uso**: primeiro acesso, cadastros, emissão, cancelamento, e-mail, agendamentos, produção, agentes, API e problemas comuns |
 | [`docs/prd.md`](docs/prd.md) | objetivos, requisitos e contexto (por que sair do SaaS) |
 | [`docs/architecture.md`](docs/architecture.md) | arquitetura original, modelo de dados e schema SQL |

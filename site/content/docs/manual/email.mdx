@@ -1,0 +1,63 @@
+---
+title: "Enviar a nota por e-mail"
+description: "A nota chega ao tomador pelo seu Gmail, com o DANFSe e o XML."
+---
+
+A nota chega ao tomador com o DANFSe (PDF) e o XML, saindo do **seu Gmail**.
+
+## Gerar a senha de app do Google (uma vez)
+
+1. Ative a **verificação em duas etapas** na conta Google.
+2. Em [https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), crie uma senha de app (nome sugerido: "nfse-digital").
+3. O Google mostra **16 letras** em quatro blocos (`abcd efgh ijkl mnop`). Pode colar com ou sem os espaços. **Não** é a senha normal da conta.
+
+Para cortar o acesso depois, basta revogar essa senha de app na mesma página do Google.
+
+## Configurar o tomador
+
+**Tomadores → (tomador) → aba Envio por e-mail**:
+
+| Campo | Regra |
+|---|---|
+| Enviar automaticamente cada nota autorizada | ligado, a nota sai sozinha logo depois de autorizada; desligado, só pelo botão da nota |
+| Gmail que envia · Nome do remetente | um remetente por conta, **vale para todos os tomadores** |
+| Senha de app do Google | testada com um login no Gmail **ao salvar** — senha errada não é gravada. Fica guardada cifrada e nunca volta para a tela; para manter a guardada, deixe o campo vazio |
+| Para · Cópia | vários e-mails separados por vírgula |
+| Assunto · Mensagem | texto livre com os marcadores abaixo |
+| Anexar PDF (DANFSe) · Anexar XML | os anexos do e-mail |
+
+**Marcadores** — clique num deles para inserir onde está o cursor:
+
+| Marcador | Vira | Exemplo |
+|---|---|---|
+| `{numero}` | número da NFS-e | 123 |
+| `{valor}` | valor | R$ 1.500,00 |
+| `{competencia}` | competência | 11/2026 |
+| `{mesCompetencia}` | competência por extenso | novembro/2026 |
+| `{dataEmissao}` | data de emissão | 02/11/2026 |
+| `{tomador}` | nome do tomador | AURORA SISTEMAS LTDA |
+| `{emitente}` | razão social do emitente | |
+| `{cnpjEmitente}` | CNPJ do emitente | 11.222.333/0001-81 |
+| `{descricao}` | descrição do serviço | |
+| `{chave}` | chave de acesso | 50 dígitos |
+| `{linkConsulta}` | link da consulta pública da nota | https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave=… |
+
+A **Prévia**, à direita, acompanha o que você digita, com uma nota de exemplo (nº 123, R$ 1.500,00).
+
+## Enviar um teste
+
+Em **Enviar e-mail de teste**, ponha o seu endereço e clique em **Enviar teste**:
+
+- sai pelo Gmail da tela, com o texto da tela **mesmo sem salvar**;
+- assunto com **[TESTE]** e sem cópia;
+- os anexos são de exemplo, marcados **"SIMULAÇÃO · SEM VALOR FISCAL"** (no PDF, em diagonal; no XML, na primeira linha);
+- nada é salvo.
+
+Depois do teste, clique em **Salvar envio por e-mail**.
+
+## No dia a dia
+
+- **Automático**: com a caixa ligada, cada nota autorizada do tomador sai sozinha — emitida pelo painel, pela API, pelo agente ou pelo agendamento.
+- **Manual**: no detalhe da nota autorizada, **Enviar por e-mail** manda agora para o Para e a Cópia do tomador.
+- **Histórico**: o detalhe da nota lista cada envio — *Enviada* ou *Falhou*, quando, automático ou manual, para quem — e o motivo da falha.
+- **Se o Gmail falhar**, a nota continua autorizada: a falha só fica no histórico. Corrija (senha revogada, destinatário errado) e use o botão manual.

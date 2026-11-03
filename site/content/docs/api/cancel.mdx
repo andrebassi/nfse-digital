@@ -1,0 +1,63 @@
+---
+title: "Cancelar nota"
+description: "POST /invoices/{id}/cancel — registra o evento de cancelamento na SEFIN."
+---
+
+<Callout type="error" title="Irreversível">
+Cancelar registra um evento na SEFIN e não tem volta. Confirme com uma pessoa antes, e em produção mande `confirm_production: true`.
+</Callout>
+
+<Tabs items={['cURL', 'Go', 'Python', 'TypeScript']}>
+<Tab value="cURL">
+```bash
+curl -X POST https://nfse.bassi.engineer/api/v1/invoices/42/cancel \
+  -H "Authorization: Bearer $NFSE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "erro_emissao", "description": "Valor da fatura informado errado"}'
+```
+</Tab>
+<Tab value="Go">
+```go
+res, err := client.CancelInvoiceWithResponse(ctx, 42, nfse.CancelRequest{
+	Reason:      nfse.ErroEmissao,
+	Description: "Valor da fatura informado errado",
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+from nfse_digital.api.notas import cancel_invoice
+from nfse_digital.models import CancelRequest, CancelRequestReason
+
+response = cancel_invoice.sync_detailed(42, client=client, body=CancelRequest(
+    reason=CancelRequestReason.ERRO_EMISSAO, description="Valor da fatura informado errado"))
+```
+</Tab>
+<Tab value="TypeScript">
+```ts
+import { cancelInvoice } from "./nfse/index.js";
+
+const { data, error } = await cancelInvoice({
+  client,
+  path: { id: 42 },
+  body: { reason: "erro_emissao", description: "Valor da fatura informado errado" },
+});
+```
+</Tab>
+</Tabs>
+
+| Campo | Valores |
+|---|---|
+| `reason` | `erro_emissao` · `servico_nao_prestado` · `outros` |
+| `description` | justificativa de 15 a 255 caracteres |
+| `confirm_production` | `true` obrigatório para nota de produção |
+
+| Status | Quando |
+|---|---|
+| **200** | cancelada; `status` = `cancelled` |
+| **409** | a nota não está autorizada, ou é de produção sem `confirm_production` |
+| **422** | `fields` (motivo ou justificativa inválidos) ou a SEFIN recusou: `invoice` vem junto, ainda `authorized`, com o motivo em `message` |
+| **502** | a SEFIN não respondeu; nada mudou, pode repetir |
+| **503** | cancelamento desligado neste painel |
+
+Passado o prazo do município, a SEFIN recusa e o cancelamento só sai pela prefeitura do município de incidência — a `message` diz isso.

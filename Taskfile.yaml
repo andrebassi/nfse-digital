@@ -62,6 +62,37 @@ tasks:
     cmds:
       - set -o pipefail; ./scripts/email-smoke.sh 2>&1 | tee /tmp/nfse-email-smoke.log
 
+  sdk:generate:
+    desc: Regera os SDKs Go, Python e TypeScript a partir do openapi.json (geradores com versão fixa)
+    cmds:
+      - set -o pipefail; ./scripts/sdk-generate.sh 2>&1 | tee /tmp/nfse-sdk-generate.log
+
+  sdk:check:
+    desc: Reprova se os SDKs versionados divergem do que o openapi.json gera
+    cmds:
+      - set -o pipefail; ./scripts/sdk-generate.sh --check 2>&1 | tee /tmp/nfse-sdk-check.log
+
+  sdk:smoke:
+    desc: Os três SDKs contra o binário real (banco temporário, porta 8796, sem SEFIN)
+    deps: [build]
+    cmds:
+      - set -o pipefail; ./scripts/sdk-smoke.sh 2>&1 | tee /tmp/nfse-sdk-smoke.log
+
+  docs:dev:
+    desc: Site de documentação (Fumadocs) em http://localhost:3000
+    cmds:
+      - ./scripts/docs-site.sh dev
+
+  docs:build:
+    desc: Export estático do site de documentação em site/out (contrato da API copiado para public/)
+    cmds:
+      - set -o pipefail; ./scripts/docs-site.sh build 2>&1 | tee /tmp/nfse-docs-build.log
+
+  docs:deploy:
+    desc: Publica o site em nfse-docs.bassi.engineer (Cloudflare Pages, projeto nfse-docs; token do pass)
+    cmds:
+      - set -o pipefail; ./scripts/docs-site.sh deploy 2>&1 | tee /tmp/nfse-docs-deploy.log
+
   xsd:check:
     desc: Valida a DPS de referência no XSD oficial (cópia sem âncoras, ver schemas/README.md)
     cmds:

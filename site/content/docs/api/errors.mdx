@@ -1,0 +1,30 @@
+---
+title: "Erros"
+description: "Todo erro é JSON, com o status HTTP que diz o que fazer."
+---
+
+```json
+{ "error": "dados inválidos", "fields": { "idempotency_key": "obrigatória: use um id estável do seu sistema" } }
+```
+
+`fields` aparece em dado inválido; `invoice`, quando a nota existe (por exemplo, cancelamento recusado pela SEFIN).
+
+| Situação | HTTP |
+|---|---|
+| JSON inválido, campo desconhecido, `limit` ou `status` fora da faixa | **400** |
+| token ausente, inválido ou revogado | **401** |
+| `Host` não permitido (proteção contra DNS rebinding) | **403** |
+| registro inexistente ou de outra conta | **404** |
+| produção sem confirmação; nota fora do status exigido | **409** |
+| dado inválido por campo; SEFIN recusou o cancelamento | **422** |
+| falha interna (vai para o log, sem detalhe na resposta) | **500** |
+| SEFIN sem resposta no cancelamento | **502** |
+| recurso desligado neste painel | **503** |
+
+## Regras que um integrador não pode quebrar
+
+1. **Nunca** gerar `idempotency_key` aleatória por tentativa: a chave é o id da cobrança.
+2. Resposta **202** ou timeout: consultar pela chave antes de reenviar. Reenviar é seguro **só** com a mesma chave.
+3. `confirm_production: true` só depois de uma pessoa confirmar a emissão.
+4. Cancelar é irreversível: confirmar com uma pessoa antes.
+5. Não há rota para cadastrar tomador nem modelo: o cadastro é no painel.
