@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · nfse-digital</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="grid min-h-screen place-items-center bg-muted/40 p-4">
+<main class="flex w-full max-w-sm flex-col items-center gap-6">
+  <p class="flex items-center gap-2 font-semibold">
+    <span class="grid size-7 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">nf</span>
+    nfse-digital
+  </p>
+  {{template "content" .}}
+</main>
+</body>
+</html>

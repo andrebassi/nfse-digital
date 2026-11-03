@@ -1,0 +1,20 @@
+{{define "content"}}
+{{$d := .Data}}
+<div>
+  <h1 class="page-title">Passar para produção</h1>
+  <p class="page-sub">Em produção, cada nota emitida é um documento fiscal de verdade: não dá para desfazer, só cancelar.</p>
+</div>
+{{with $d.Error}}<div class="alert alert-destructive" role="alert">{{.}}</div>{{end}}
+<form method="post" action="/environment/production" class="card card-pad grid max-w-xl gap-4">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="text-sm">Para confirmar, digite o CNPJ de <strong>{{$d.Issuer.LegalName}}</strong>.</p>
+  <div class="field">
+    <label for="confirm_cnpj" class="label">CNPJ do emitente</label>
+    <input id="confirm_cnpj" name="confirm_cnpj" class="input tabular font-mono" inputmode="numeric" autocomplete="off" required autofocus>
+  </div>
+  <div class="flex gap-2">
+    <button type="submit" class="btn btn-destructive">Passar para produção</button>
+    <a href="/invoices" class="btn btn-ghost">Continuar em homologação</a>
+  </div>
+</form>
+{{end}}

@@ -1,0 +1,268 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "nfse-digital — API REST",
+    "version": "1.0.0",
+    "description": "Integre seu sistema (ERP, faturamento) para **emitir, listar, consultar e cancelar** NFS-e pelo Emissor Nacional (SEFIN). Tomadores e modelos de serviço continuam sendo cadastrados no painel; a API só os lista.\n\n## Autenticação\n\nToda rota (menos este contrato, a documentação e o llms.txt) exige `Authorization: Bearer <TOKEN>`. Gere o token no painel, em **Integrações → Tokens de API**. É o mesmo token do MCP; revogar no painel derruba os dois na hora.\n\n## Idempotência\n\nToda emissão leva uma `idempotency_key` sua — use o id da fatura no seu sistema. Reenviar a mesma chave **nunca** emite outra nota: devolve a mesma (HTTP 200). Você consulta a nota por ela (`GET /invoices/by-key?idempotency_key=...`) ou pelo `id`.\n\n## Produção\n\nCom o emitente em produção (nota com valor fiscal), emitir e cancelar exigem `\"confirm_production\": true` no corpo. Sem isso a API responde 409 e nada é enviado à SEFIN.\n\n## Resposta pendente\n\nSe a SEFIN não der resposta definitiva, a emissão responde **202** com a nota em `pending`. Consulte a nota antes de pensar em emitir de novo — e, se emitir, use a **mesma** `idempotency_key`.",
+    "license": { "name": "Uso pessoal" }
+  },
+  "servers": [{ "url": "http://127.0.0.1:8735/api/v1", "description": "substituído pelo endereço do painel que serve este arquivo" }],
+  "security": [{ "bearer": [] }],
+  "tags": [
+    { "name": "Notas", "description": "Emitir, listar, consultar, cancelar e baixar o DANFSe." },
+    { "name": "Cadastros", "description": "Tomadores e modelos de serviço (só leitura: cadastre no painel)." },
+    { "name": "Conta", "description": "Emitente do token: ambiente, série e próximo número da DPS." }
+  ],
+  "paths": {
+    "/account": {
+      "get": {
+        "tags": ["Conta"],
+        "operationId": "getAccount",
+        "summary": "Emitente da conta",
+        "description": "Confere a integração antes da primeira emissão: em qual ambiente o emitente está e qual o próximo número da DPS.",
+        "responses": {
+          "200": { "description": "Emitente", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Account" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "tags": ["Cadastros"],
+        "operationId": "listCustomers",
+        "summary": "Listar tomadores",
+        "parameters": [{ "name": "q", "in": "query", "description": "filtra por nome ou documento", "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Tomadores", "content": { "application/json": { "schema": { "type": "object", "required": ["customers"], "properties": { "customers": { "type": "array", "items": { "$ref": "#/components/schemas/Customer" } } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/templates": {
+      "get": {
+        "tags": ["Cadastros"],
+        "operationId": "listTemplates",
+        "summary": "Listar modelos de serviço",
+        "parameters": [{ "name": "q", "in": "query", "description": "filtra pelo nome", "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Modelos", "content": { "application/json": { "schema": { "type": "object", "required": ["templates"], "properties": { "templates": { "type": "array", "items": { "$ref": "#/components/schemas/Template" } } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/invoices": {
+      "get": {
+        "tags": ["Notas"],
+        "operationId": "listInvoices",
+        "summary": "Listar notas",
+        "description": "Da mais recente para a mais antiga.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/InvoiceStatus" } },
+          { "name": "limit", "in": "query", "description": "quantas notas devolver", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Notas", "content": { "application/json": { "schema": { "type": "object", "required": ["invoices"], "properties": { "invoices": { "type": "array", "items": { "$ref": "#/components/schemas/Invoice" } } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Notas"],
+        "operationId": "emitInvoice",
+        "summary": "Emitir nota",
+        "description": "Emite pela mesma regra do painel. Campos vazios vêm do modelo: `amount` usa o valor padrão, `competence` usa hoje e `description` usa a do modelo com `{mes}` e `{ano}` resolvidos.\n\nRepetir a mesma `idempotency_key` devolve a nota já criada (200), sem emitir outra.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": {
+            "schema": { "$ref": "#/components/schemas/EmitRequest" },
+            "example": { "idempotency_key": "fatura-2026-11-0042", "customer_id": 1, "template_id": 1, "amount": "1500.00", "competence": "2026-11-01", "description": "Suporte técnico - novembro" }
+          } }
+        },
+        "responses": {
+          "200": { "description": "A idempotency_key já tinha nota: devolve a mesma, nada foi emitido", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "201": { "description": "Nota criada — autorizada ou rejeitada pela SEFIN (veja status e message)", "headers": { "Location": { "description": "URL da nota", "schema": { "type": "string" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "202": { "description": "Sem resposta definitiva da SEFIN: nota em pending. Consulte antes de emitir de novo", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/invoices/{id}": {
+      "get": {
+        "tags": ["Notas"],
+        "operationId": "getInvoice",
+        "summary": "Consultar nota pelo id",
+        "parameters": [{ "$ref": "#/components/parameters/InvoiceID" }],
+        "responses": {
+          "200": { "description": "Nota", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/invoices/by-key": {
+      "get": {
+        "tags": ["Notas"],
+        "operationId": "getInvoiceByKey",
+        "summary": "Consultar nota pela idempotency_key",
+        "description": "O id da fatura no seu sistema basta: você não precisa guardar o id do nfse-digital.",
+        "parameters": [{ "name": "idempotency_key", "in": "query", "required": true, "schema": { "type": "string" }, "example": "fatura-2026-11-0042" }],
+        "responses": {
+          "200": { "description": "Nota", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/invoices/{id}/cancel": {
+      "post": {
+        "tags": ["Notas"],
+        "operationId": "cancelInvoice",
+        "summary": "Cancelar nota",
+        "description": "Registra o evento de cancelamento na SEFIN. **Irreversível.** Só nota autorizada.",
+        "parameters": [{ "$ref": "#/components/parameters/InvoiceID" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": {
+            "schema": { "$ref": "#/components/schemas/CancelRequest" },
+            "example": { "reason": "erro_emissao", "description": "Valor da fatura informado errado" }
+          } }
+        },
+        "responses": {
+          "200": { "description": "Cancelada", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Invoice" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "description": "Dados inválidos (fields) ou SEFIN recusou o cancelamento (invoice, ainda autorizada, com o motivo)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "502": { "description": "A SEFIN não respondeu: tente de novo", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/invoices/{id}/danfse": {
+      "get": {
+        "tags": ["Notas"],
+        "operationId": "getInvoiceDANFSe",
+        "summary": "Baixar o DANFSe (PDF)",
+        "parameters": [{ "$ref": "#/components/parameters/InvoiceID" }],
+        "responses": {
+          "200": { "description": "PDF do DANFSe", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": { "type": "http", "scheme": "bearer", "description": "Token gerado no painel (Integrações → Tokens de API), começa com nf_" }
+    },
+    "parameters": {
+      "InvoiceID": { "name": "id", "in": "path", "required": true, "description": "id da nota no nfse-digital", "schema": { "type": "integer", "minimum": 1 } }
+    },
+    "responses": {
+      "BadRequest": { "description": "JSON inválido, campo desconhecido ou parâmetro fora da faixa", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unauthorized": { "description": "Token ausente, inválido ou revogado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "NotFound": { "description": "Não encontrado (ou de outra conta)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Conflict": { "description": "Emitente em produção sem confirm_production, ou a nota não está no status que a operação exige", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unprocessable": { "description": "Dados inválidos: fields diz o problema de cada campo", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+      "Unavailable": { "description": "Recurso desligado neste painel", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+    },
+    "schemas": {
+      "InvoiceStatus": { "type": "string", "enum": ["pending", "authorized", "rejected", "cancelled"] },
+      "Environment": { "type": "string", "enum": ["homologation", "production"] },
+      "Invoice": {
+        "type": "object",
+        "required": ["id", "status", "status_label", "environment", "dps_series", "dps_number", "amount", "customer_id", "template_id", "description"],
+        "properties": {
+          "id": { "type": "integer", "example": 42 },
+          "idempotency_key": { "type": "string", "example": "fatura-2026-11-0042" },
+          "status": { "$ref": "#/components/schemas/InvoiceStatus" },
+          "status_label": { "type": "string", "example": "autorizada" },
+          "environment": { "$ref": "#/components/schemas/Environment" },
+          "dps_series": { "type": "string", "example": "900" },
+          "dps_number": { "type": "integer", "example": 1001 },
+          "nfse_number": { "type": "string", "description": "número da NFS-e (autorizada)" },
+          "access_key": { "type": "string", "description": "chave de acesso de 50 dígitos (autorizada)" },
+          "amount": { "type": "string", "example": "1500.00", "description": "ponto decimal, duas casas" },
+          "competence": { "type": "string", "format": "date", "example": "2026-11-01" },
+          "issued_at": { "type": "string", "format": "date-time" },
+          "customer_id": { "type": "integer" },
+          "template_id": { "type": "integer" },
+          "description": { "type": "string" },
+          "error_code": { "type": "string", "description": "código da SEFIN (rejeitada)", "example": "E0039" },
+          "message": { "type": "string", "description": "erro da SEFIN traduzido, ou aviso de resposta pendente" }
+        }
+      },
+      "EmitRequest": {
+        "type": "object",
+        "required": ["idempotency_key", "customer_id", "template_id"],
+        "additionalProperties": false,
+        "properties": {
+          "idempotency_key": { "type": "string", "description": "id estável do seu sistema (ex.: o id da fatura); repetir nunca emite outra nota" },
+          "customer_id": { "type": "integer", "description": "GET /customers" },
+          "template_id": { "type": "integer", "description": "GET /templates" },
+          "amount": { "type": "string", "description": "1500.00 ou 1.500,00; vazio usa o valor do modelo" },
+          "competence": { "type": "string", "format": "date", "description": "AAAA-MM-DD; vazio usa hoje" },
+          "description": { "type": "string", "description": "vazio usa a do modelo, com {mes} e {ano} resolvidos" },
+          "confirm_production": { "type": "boolean", "default": false, "description": "obrigatório true com o emitente em produção" }
+        }
+      },
+      "CancelRequest": {
+        "type": "object",
+        "required": ["reason", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "reason": { "type": "string", "enum": ["erro_emissao", "servico_nao_prestado", "outros"] },
+          "description": { "type": "string", "minLength": 15, "maxLength": 255, "description": "justificativa" },
+          "confirm_production": { "type": "boolean", "default": false, "description": "obrigatório true para nota de produção" }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "document": { "type": "string", "description": "CPF ou CNPJ, só dígitos" },
+          "email": { "type": "string" },
+          "city": { "type": "string" }
+        }
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "service_code": { "type": "string", "description": "código de tributação nacional" },
+          "default_amount": { "type": "string", "example": "1500.00" },
+          "description": { "type": "string" }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "legal_name": { "type": "string" },
+          "cnpj": { "type": "string" },
+          "environment": { "$ref": "#/components/schemas/Environment" },
+          "series": { "type": "string" },
+          "next_dps_number": { "type": "integer" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "fields": { "type": "object", "additionalProperties": { "type": "string" } },
+          "invoice": { "$ref": "#/components/schemas/Invoice" }
+        }
+      }
+    }
+  }
+}

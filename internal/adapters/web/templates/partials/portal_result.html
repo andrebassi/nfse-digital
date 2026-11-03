@@ -1,0 +1,58 @@
+{{/* Resultado da importação do Portal Nacional: o mesmo cartão na janela
+    (injetado pelo portal.js) e na página sem JavaScript (portal.html). */}}
+{{define "portal_result"}}
+<div class="import-card" data-portal-result>
+  {{if .Error}}
+  <h3 class="import-title">Consulta interrompida</h3>
+  <p class="import-sub">{{.Error}}</p>
+  <div class="flex justify-center"><a href="/templates" class="btn btn-outline">Voltar aos modelos</a></div>
+  {{else}}
+  <h3 class="import-title">Consulta concluída</h3>
+  <p class="import-sub">Consulta às NFS-e emitidas pela empresa no Portal Nacional, usando o certificado digital enviado. Acesso somente leitura: nenhuma nota é emitida ou alterada.</p>
+  <div class="import-bar" aria-hidden="true">{{range .Segments}}<span class="import-segment{{if .}} import-segment-strong{{end}}"></span>{{end}}</div>
+  <div class="import-meta"><span>concluído</span><span><strong>{{.Found}}</strong> notas encontradas</span></div>
+  <ul class="import-steps">
+    <li class="import-step import-step-done"><span>Certificado validado</span><span class="import-step-meta">e-CNPJ</span></li>
+    <li class="import-step import-step-done"><span>Conectando ao Portal Nacional</span><span class="import-step-meta">mTLS</span></li>
+    <li class="import-step import-step-done"><span>Lendo notas emitidas</span><span class="import-step-meta">{{.Batches}} {{if eq .Batches 1}}lote{{else}}lotes{{end}}</span></li>
+    <li class="import-step import-step-done"><span>Gerando modelos de serviço</span><span class="import-step-meta">{{.Templates}} {{if eq .Templates 1}}modelo{{else}}modelos{{end}}</span></li>
+  </ul>
+  {{if .Recent}}
+  <p class="section-label">Encontradas agora</p>
+  <ul class="import-list">
+    {{range .Recent}}
+    <li class="import-row">
+      <span class="import-number">nº {{.Number}}</span>
+      <span class="import-customer">{{.Customer}}</span>
+      <span class="import-competence">{{.Competence}}</span>
+      <span class="import-amount">{{.Amount}}</span>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+  <div class="flex justify-center"><a href="/invoices?period=365" class="btn btn-primary">Ver as {{.Found}} notas</a></div>
+  {{end}}
+</div>
+{{end}}
+
+{{/* Cartão enquanto a consulta roda. O portal.js acende as etapas uma a
+    uma (só visual) e troca o cartão pelo resultado do servidor quando ele
+    chega; sem JavaScript, o botão "Importar agora" faz o mesmo POST. */}}
+{{define "portal_running"}}
+<div class="import-card" data-portal-running>
+  <h3 class="import-title">Consultando o Portal Nacional</h3>
+  <p class="import-sub">Consulta às NFS-e emitidas pela empresa no Portal Nacional, usando o certificado digital enviado. Acesso somente leitura: nenhuma nota é emitida ou alterada.</p>
+  <div class="import-bar import-bar-running" aria-hidden="true"><span class="import-segment"></span></div>
+  <div class="import-meta"><span>consultando…</span><span>leva alguns segundos</span></div>
+  <ul class="import-steps">
+    <li class="import-step" data-step><span>Certificado validado</span><span class="import-step-meta">e-CNPJ</span></li>
+    <li class="import-step" data-step><span>Conectando ao Portal Nacional</span><span class="import-step-meta">mTLS</span></li>
+    <li class="import-step" data-step><span>Lendo notas emitidas</span><span class="import-step-meta">…</span></li>
+    <li class="import-step" data-step><span>Gerando modelos de serviço</span><span class="import-step-meta">…</span></li>
+  </ul>
+  <form method="post" action="/portal/import" class="flex justify-center" data-portal-import>
+    <input type="hidden" name="csrf" value="{{.}}">
+    <button type="submit" class="btn btn-primary" data-portal-fallback>Importar agora</button>
+  </form>
+</div>
+{{end}}

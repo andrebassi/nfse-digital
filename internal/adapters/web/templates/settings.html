@@ -1,0 +1,192 @@
+{{define "content"}}
+{{$d := .Data}}{{$i := $d.Issuer}}
+<div>
+  <h1 class="page-title">Configurações</h1>
+  <p class="page-sub">Emitente, certificado digital e segurança da conta.</p>
+</div>
+
+<nav class="tabs w-fit" aria-label="Seções de configurações">
+  {{range $d.Sections}}{{if .Disabled}}<span class="tab tab-disabled" aria-disabled="true">{{.Label}}</span>{{else}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}
+</nav>
+
+{{if eq $d.Section "issuer"}}
+
+<section class="flex flex-col gap-3" aria-labelledby="issuer-title">
+  <h2 id="issuer-title" class="section-label">Emitente</h2>
+  <form method="post" action="/settings" class="card card-pad grid max-w-3xl gap-4">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="field">
+      <label for="legal_name" class="label">Razão social</label>
+      <input id="legal_name" name="legal_name" value="{{$i.LegalName}}" class="input">
+      {{with $d.Errors.legal_name}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="cnpj" class="label">CNPJ</label>
+        <input id="cnpj" name="cnpj" value="{{doc $i.CNPJ}}" class="input tabular font-mono">
+        {{with $d.Errors.cnpj}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+      <div class="field"><label for="municipal_registration" class="label">Inscrição municipal</label><input id="municipal_registration" name="municipal_registration" value="{{$i.MunicipalRegistration}}" class="input font-mono"></div>
+    </div>
+    <div class="grid grid-cols-[1fr_120px_1fr] gap-4 max-sm:grid-cols-1">
+      <div class="field"><label for="city_name" class="label">Município</label><input id="city_name" name="city_name" value="{{$i.CityName}}" class="input"></div>
+      <div class="field">
+        <label for="city_code" class="label">IBGE</label>
+        <input id="city_code" name="city_code" value="{{$i.CityCode}}" class="input tabular font-mono">
+        {{with $d.Errors.city_code}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+      <div class="field">
+        <label for="simples_option" class="label">Optante pelo Simples</label>
+        <select id="simples_option" name="simples_option" class="input">
+          <option value="none" {{if eq $i.SimplesOption "none"}}selected{{end}}>Não optante</option>
+          <option value="mei" {{if eq $i.SimplesOption "mei"}}selected{{end}}>Optante — MEI</option>
+          <option value="me-epp" {{if eq $i.SimplesOption "me-epp"}}selected{{end}}>Optante — ME/EPP</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="simples_regime" class="label">Regime de apuração (SN)</label>
+        <select id="simples_regime" name="simples_regime" class="input">
+          <option value="federal-municipal-sn" {{if eq $i.SimplesRegime "federal-municipal-sn"}}selected{{end}}>Federal e municipal pelo SN</option>
+          <option value="federal-sn" {{if eq $i.SimplesRegime "federal-sn"}}selected{{end}}>Federal pelo SN, municipal fora</option>
+          <option value="outside-sn" {{if eq $i.SimplesRegime "outside-sn"}}selected{{end}}>Federal e municipal fora do SN</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="special_regime" class="label">Regime especial de tributação</label>
+        <select id="special_regime" name="special_regime" class="input">
+          {{/* Os oito códigos de TSRegEspTrib, na ordem do XSD. "cooperative" é o valor antigo do mesmo código 1. */}}
+          <option value="none" {{if or (eq $i.SpecialRegime "none") (eq $i.SpecialRegime "")}}selected{{end}}>Nenhum</option>
+          <option value="cooperative-act" {{if or (eq $i.SpecialRegime "cooperative-act") (eq $i.SpecialRegime "cooperative")}}selected{{end}}>Ato cooperado (cooperativa)</option>
+          <option value="estimate" {{if eq $i.SpecialRegime "estimate"}}selected{{end}}>Estimativa</option>
+          <option value="municipal-microenterprise" {{if eq $i.SpecialRegime "municipal-microenterprise"}}selected{{end}}>Microempresa municipal</option>
+          <option value="notary" {{if eq $i.SpecialRegime "notary"}}selected{{end}}>Notário ou registrador</option>
+          <option value="self-employed" {{if eq $i.SpecialRegime "self-employed"}}selected{{end}}>Profissional autônomo</option>
+          <option value="professional-society" {{if eq $i.SpecialRegime "professional-society"}}selected{{end}}>Sociedade de profissionais</option>
+          <option value="other" {{if eq $i.SpecialRegime "other"}}selected{{end}}>Outros</option>
+        </select>
+        {{with $d.Errors.special_regime}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="environment" class="label">Ambiente</label>
+        <select id="environment" name="environment" class="input">
+          <option value="homologation" {{if ne $i.Environment "production"}}selected{{end}}>Homologação (restrita)</option>
+          <option value="production" {{if eq $i.Environment "production"}}selected{{end}}>Produção</option>
+        </select>
+        <p class="hint">Produção pede o CNPJ de novo antes de valer.</p>
+      </div>
+      <div class="field">
+        <label for="series" class="label">Série da DPS</label>
+        <input id="series" name="series" value="{{$i.Series}}" class="input tabular font-mono">
+        {{with $d.Errors.series}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="next_dps_number" class="label">Próximo nº da DPS</label>
+        <input id="next_dps_number" name="next_dps_number" value="{{$i.NextDPSNumber}}" class="input tabular font-mono" inputmode="numeric">
+        {{with $d.Errors.next_dps_number}}<p class="field-error">{{.}}</p>{{end}}
+        <p class="hint">Numeração automática; só altere para sincronizar com outro emissor.</p>
+      </div>
+      <div class="field">
+        <label for="simples_tax_rate" class="label">Alíquota aproximada do Simples (%)</label>
+        <input id="simples_tax_rate" name="simples_tax_rate" value="{{$i.SimplesTaxRate.InputValue}}" class="input tabular font-mono" inputmode="decimal" placeholder="6,00">
+        {{with $d.Errors.simples_tax_rate}}<p class="field-error">{{.}}</p>{{end}}
+        <p class="hint">Obrigatória para ME/EPP: vai na nota como total aproximado de tributos (alíquota efetiva do DAS).</p>
+      </div>
+    </div>
+    <div class="flex justify-end"><button type="submit" class="btn btn-primary">Salvar</button></div>
+  </form>
+</section>
+
+{{end}}
+
+{{if eq $d.Section "certificate"}}
+<section class="flex flex-col gap-3" aria-labelledby="cert-title">
+  <div class="card card-pad grid max-w-3xl gap-5">
+    <h3 id="cert-title" class="text-lg font-semibold">Certificado digital A1</h3>
+    {{with $d.CertificateError}}<div class="alert alert-destructive" role="alert">{{.}}</div>{{end}}
+    {{if $d.Certificate.Info.CNPJ}}
+    <p class="rounded-lg bg-muted px-4 py-3 text-sm">{{$d.Certificate.Info.HolderName}} · <span class="font-mono">{{doc $d.Certificate.Info.CNPJ}}</span> · válido até {{date $d.Certificate.Info.NotAfter}}</p>
+    {{else}}
+    <p class="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">Nenhum certificado enviado ainda.{{if $d.CertificateEnabled}} Envie o .pfx abaixo para liberar o painel.{{end}}</p>
+    {{end}}
+    {{if $d.CertificateEnabled}}
+    <form method="post" action="/settings/certificate" enctype="multipart/form-data" class="grid gap-4">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label for="pfx" class="dropzone">
+        <span aria-hidden="true" class="text-2xl">⇪</span>
+        <span>Arraste o certificado A1 (<code>.pfx</code>) ou clique para escolher</span>
+        <input id="pfx" name="pfx" type="file" accept=".pfx,.p12,application/x-pkcs12" required class="text-xs">
+      </label>
+      <div class="field">
+        <label for="password" class="label">Senha do certificado</label>
+        <input id="password" name="password" type="password" autocomplete="off" required class="input">
+      </div>
+      <p class="hint">O arquivo é aberto só na memória para conferir senha, validade e CNPJ. {{$d.CertificateStorage}}</p>
+      <button type="submit" class="btn btn-primary justify-self-start">{{if $d.Certificate.Info.CNPJ}}Substituir certificado{{else}}Enviar certificado{{end}}</button>
+    </form>
+    {{end}}
+    <div class="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+      <div class="grid gap-1">
+        <p class="font-medium">Consulta ao Portal Nacional</p>
+        <p class="text-sm text-muted-foreground">{{if $d.Certificate.PortalAuthorized}}Autorizada em {{date $d.Certificate.PortalAuthorizedAt}}. O certificado é usado para consultar, somente leitura, as NFS-e emitidas pela empresa.{{else}}Não autorizada. Autorize para importar do portal e sincronizar as notas — só leitura, nada é enviado.{{end}}</p>
+      </div>
+      <form method="post" action="/settings/portal">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        {{if $d.Certificate.PortalAuthorized}}
+        <button type="submit" name="action" value="revoke" class="btn btn-outline">Revogar autorização</button>
+        {{else}}
+        <button type="submit" name="action" value="authorize" class="btn btn-primary">Autorizar consulta</button>
+        {{end}}
+      </form>
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{if eq $d.Section "security"}}
+<section class="flex flex-col gap-3" aria-labelledby="passkeys-title">
+  <div class="card card-pad grid max-w-3xl gap-5">
+    <h3 id="passkeys-title" class="text-lg font-semibold">Passkeys</h3>
+    {{if $d.PasskeyLocalURL}}
+    <div class="alert alert-warning text-sm">Passkey só funciona pelo endereço <strong>localhost</strong> (o padrão WebAuthn não aceita IP). <a class="underline" href="{{$d.PasskeyLocalURL}}">Abrir em {{$d.PasskeyLocalURL}}</a></div>
+    {{end}}
+    <p class="text-sm text-muted-foreground">{{if $d.Passkeys}}{{len $d.Passkeys}} passkey(s) cadastrada(s). Entre com Touch ID, Windows Hello ou chave de segurança.{{else}}Nenhuma passkey ainda. Com uma passkey você entra com Touch ID, Windows Hello ou chave de segurança, sem digitar senha.{{end}}</p>
+    {{if $d.Passkeys}}
+    <ul class="grid gap-1 text-sm">
+      {{range $d.Passkeys}}<li class="tabular text-muted-foreground">Cadastrada em {{datetime .CreatedAt}} · {{if .LastUsedAt.IsZero}}nunca usada{{else}}último uso {{datetime .LastUsedAt}}{{end}}</li>{{end}}
+    </ul>
+    {{end}}
+    <p class="alert alert-destructive text-sm" data-passkey-error hidden></p>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" class="btn btn-primary" data-passkey="register" data-csrf="{{.CSRF}}">{{if $d.Passkeys}}Adicionar outra passkey{{else}}Adicionar passkey{{end}}</button>
+      {{if $d.Passkeys}}
+      <form method="post" action="/settings/security/passkeys/remove">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-outline">Remover passkeys</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{/* Excluir conta: apaga a conta e todos os dados dela e desloga. Não tem
+    volta, então pede o e-mail da conta digitado de novo. */}}
+<section class="flex flex-col gap-3" aria-labelledby="delete-title">
+  <h3 id="delete-title" class="text-lg font-semibold text-destructive">Excluir conta</h3>
+  <form method="post" action="/settings/security/delete-account" class="card card-pad grid gap-4 border-destructive/40">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p class="text-sm text-muted-foreground">Apaga esta conta e <strong>todos os dados dela</strong>: emitente, tomadores, modelos, notas, agendamentos, o certificado guardado, tokens de API e passkeys. As notas continuam na SEFIN; só a cópia daqui some. Não dá para desfazer.</p>
+    <div class="field max-w-md">
+      <label for="confirm_email" class="label">Para confirmar, digite o e-mail desta conta ({{.Account.Email}})</label>
+      <input id="confirm_email" name="confirm_email" type="email" class="input" autocomplete="off" required>
+    </div>
+    <button type="submit" class="btn btn-destructive justify-self-start">Excluir conta e todos os dados</button>
+  </form>
+</section>
+<script src="/static/passkey.js" defer></script>
+{{end}}
+{{end}}

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · nfse-digital</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="min-h-screen">
+<div class="grid min-h-screen grid-cols-[280px_1fr] max-md:grid-cols-1">
+  <aside class="flex flex-col gap-1 border-r border-border bg-sidebar p-3 max-md:border-r-0 max-md:border-b">
+    <a href="/invoices" class="flex items-center gap-2 px-2 py-2 font-semibold">
+      <span class="grid size-7 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">nf</span>
+      <span>nfse-digital</span>
+    </a>
+    {{if .Locked}}
+    <a href="/settings/certificate" class="alert alert-warning my-2 block text-xs">Envie o certificado A1 para começar →</a>
+    {{else if .Issuer.CNPJ}}
+    <div class="card my-2 px-3 py-2.5">
+      <p class="truncate text-sm font-medium" title="{{.Issuer.LegalName}}">{{.Issuer.LegalName}}</p>
+      <p class="tabular font-mono text-xs text-muted-foreground">{{doc .Issuer.CNPJ}}</p>
+      <p class="text-xs text-muted-foreground">{{.Issuer.CityName}}</p>
+    </div>
+    {{else}}
+    <a href="/settings" class="alert alert-warning my-2 block text-xs">Emitente ainda não configurado. Abrir configurações →</a>
+    {{end}}
+    <p class="section-label px-3 pt-3 pb-1">Operação</p>
+    <nav class="grid gap-0.5" aria-label="Operação">
+      <a href="/invoices" class="nav-link {{if eq .Active "invoices"}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Notas</a>
+      <a href="/emit" class="nav-link {{if eq .Active "emit"}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Emitir nota</a>
+      <a href="/schedules" class="nav-link {{if or (eq .Active "schedules") (eq .Active "schedule_form")}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Agendamentos</a>
+      <a href="/customers" class="nav-link {{if or (eq .Active "customers") (eq .Active "customer_form")}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Tomadores</a>
+      <a href="/templates" class="nav-link {{if or (eq .Active "templates") (eq .Active "template_form") (eq .Active "import") (eq .Active "portal")}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Modelos</a>
+    </nav>
+    <p class="section-label px-3 pt-4 pb-1">Configuração</p>
+    <nav class="grid gap-0.5" aria-label="Configuração">
+      <a href="/integrations" class="nav-link {{if eq .Active "integrations"}}nav-active{{end}}{{if $.Locked}} nav-disabled{{end}}"{{if $.Locked}} aria-disabled="true" tabindex="-1"{{end}}>Integrações</a>
+      <a href="/settings/certificate" class="nav-link {{if eq .Active "settings"}}nav-active{{end}}">Configurações</a>
+    </nav>
+    <div class="account-card mt-auto">
+      <span class="account-avatar" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium">{{.Account.Name}}</p>
+        <p class="truncate text-xs text-muted-foreground" title="{{.Account.Email}}">{{.Account.Email}}</p>
+      </div>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-ghost btn-sm" aria-label="Sair" title="Sair">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="flex min-w-0 flex-col">
+    <header class="flex h-14 items-center justify-between gap-3 border-b border-border px-6">
+      <p class="text-sm text-muted-foreground">nfse-digital <span class="px-1">/</span> <span class="text-foreground">{{.Title}}</span></p>
+      <div class="flex items-center gap-2">
+        <form method="post" action="/preferences/hide-values">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <input type="hidden" name="back" value="{{.Path}}">
+          <button type="submit" class="btn btn-ghost btn-sm" aria-label="{{if .Hide}}Mostrar valores{{else}}Ocultar valores{{end}}" title="{{if .Hide}}Mostrar valores{{else}}Ocultar valores{{end}}">
+            {{if .Hide}}
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.5 17.5 0 0 1-3.2 4.2M6.6 6.6A17.6 17.6 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>
+            {{else}}
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            {{end}}
+          </button>
+        </form>
+        <div class="env-switch{{if .Locked}} env-locked{{end}}" role="group" aria-label="Ambiente"{{if .Locked}} aria-disabled="true"{{end}}>
+          {{if eq .Issuer.Environment "production"}}
+          <form method="post" action="/environment/homologation">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <input type="hidden" name="back" value="{{.Path}}">
+            <button type="submit" class="env-option">HOMOLOGAÇÃO</button>
+          </form>
+          <span class="env-option env-production" aria-current="true">PRODUÇÃO</span>
+          {{else}}
+          <span class="env-option env-homologation" aria-current="true">HOMOLOGAÇÃO</span>
+          <a href="/environment/production" class="env-option">PRODUÇÃO</a>
+          {{end}}
+        </div>
+        <span class="clock">{{.Clock}}</span>
+      </div>
+    </header>
+    <main class="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
+      {{if .Flash}}<div class="alert alert-success" role="status">{{.Flash}}</div>{{end}}
+      {{template "content" .}}
+    </main>
+  </div>
+</div>
+</body>
+</html>

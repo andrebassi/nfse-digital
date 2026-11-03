@@ -1,0 +1,19 @@
+{{/* Prévia do e-mail com os dados de exemplo. Renderizada na página e, enquanto
+     o dono digita, de novo pelo servidor (POST .../email/preview) — o email.js só
+     troca o cartão; quem resolve os marcadores é a mesma regra do envio real. */}}
+{{define "email_preview"}}
+<div class="card overflow-hidden" data-email-preview>
+  <dl class="grid grid-cols-[80px_1fr] gap-x-3 gap-y-1.5 border-b border-border p-4 text-sm">
+    <dt class="text-muted-foreground">De</dt><dd>{{if .From}}{{.From}}{{else}}<em class="text-muted-foreground">informe o Gmail do remetente</em>{{end}}</dd>
+    <dt class="text-muted-foreground">Para</dt><dd class="break-all">{{if .To}}{{.To}}{{else}}<em class="text-muted-foreground">informe o destinatário</em>{{end}}</dd>
+    <dt class="text-muted-foreground">Assunto</dt><dd class="font-medium">{{.Subject}}</dd>
+  </dl>
+  <div class="whitespace-pre-wrap break-words p-4 text-sm leading-relaxed">{{.Body}}</div>
+  {{with .Attachments}}
+  <div class="flex flex-wrap gap-2 border-t border-border p-3">
+    {{range .}}<span class="badge font-mono">📎 {{.}}</span>{{end}}
+  </div>
+  {{end}}
+  <p class="border-t border-border px-4 py-2 text-xs text-muted-foreground">Prévia com dados de exemplo; no envio entram os dados da nota.</p>
+</div>
+{{end}}

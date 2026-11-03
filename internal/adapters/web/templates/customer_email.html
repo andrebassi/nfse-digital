@@ -1,0 +1,104 @@
+{{define "content"}}
+{{$d := .Data}}{{$s := $d.Settings}}
+<div>
+  <a href="/customers" class="text-sm text-muted-foreground hover:text-foreground">← Tomadores</a>
+  <h1 class="page-title mt-1">Editar tomador</h1>
+  <p class="page-sub">{{$d.Customer.Name}}</p>
+</div>
+
+<nav class="tabs w-fit" aria-label="Seções do tomador">
+  <a href="/customers/{{$d.Customer.ID}}" class="tab">Cadastro</a>
+  <a href="/customers/{{$d.Customer.ID}}/email" class="tab tab-active" aria-current="page">Envio por e-mail</a>
+</nav>
+
+{{with $d.Message}}<div class="alert {{if $d.MessageError}}alert-destructive{{else}}alert-success{{end}}" role="status">{{.}}</div>{{end}}
+
+<form method="post" action="/customers/{{$d.Customer.ID}}/email" class="grid gap-6 lg:grid-cols-2" data-email-form data-preview-url="/customers/{{$d.Customer.ID}}/email/preview">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+  <div class="card card-pad grid content-start gap-4">
+    <label class="flex items-start gap-2">
+      <input type="checkbox" name="auto_send" class="mt-1" {{if $s.AutoSend}}checked{{end}}>
+      <span><span class="font-medium">Enviar automaticamente cada nota autorizada para este tomador</span>
+      <span class="block text-sm text-muted-foreground">Desligado, a nota só sai pelo botão "Enviar por e-mail" na tela da nota.</span></span>
+    </label>
+
+    <div class="grid grid-cols-2 items-start gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="sender_address" class="label">Gmail que envia</label>
+        <input id="sender_address" name="sender_address" type="email" value="{{$d.SenderAddress}}" class="input" placeholder="voce@gmail.com" autocomplete="off">
+        {{with $d.Errors.sender_address}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+      <div class="field">
+        <label for="sender_name" class="label">Nome do remetente (opcional)</label>
+        <input id="sender_name" name="sender_name" value="{{$d.SenderName}}" class="input" placeholder="Financeiro · Sua Empresa">
+      </div>
+    </div>
+    <div class="field">
+      <label for="sender_password" class="label">Senha de app do Google</label>
+      {{/* autocomplete=new-password: o navegador não preenche com a senha do painel. */}}
+      <input id="sender_password" name="sender_password" type="password" class="input font-mono" placeholder="{{if $d.Sender.Configured}}guardada — deixe vazio para manter{{else}}abcd efgh ijkl mnop{{end}}" autocomplete="new-password">
+      {{with $d.Errors.sender_password}}<p class="field-error">{{.}}</p>{{end}}
+      <p class="hint">São 16 letras geradas pelo Google, não a senha normal da conta.{{if $d.Sender.Configured}} Guardada cifrada{{if not $d.Sender.VerifiedAt.IsZero}}, login conferido em {{datetime $d.Sender.VerifiedAt}}{{end}}; vale para todos os tomadores.{{end}}</p>
+      <p class="hint">Para gerar: ative a verificação em duas etapas na conta Google e crie uma senha em <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="underline">myaccount.google.com/apppasswords</a>. Ao salvar, o login no Gmail é testado.</p>
+    </div>
+
+    {{/* items-start: a dica embaixo do Para não estica a linha nem desce o campo Cópia. */}}
+    <div class="grid grid-cols-2 items-start gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="to" class="label">Para</label>
+        <input id="to" name="to" value="{{$s.To}}" class="input">
+        {{with $d.Errors.to}}<p class="field-error">{{.}}</p>{{else}}<p class="hint">Separe vários e-mails por vírgula.</p>{{end}}
+      </div>
+      <div class="field">
+        <label for="cc" class="label">Cópia (opcional)</label>
+        <input id="cc" name="cc" value="{{$s.CC}}" class="input">
+        {{with $d.Errors.cc}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+    </div>
+    <div class="field">
+      <label for="subject" class="label">Assunto</label>
+      <input id="subject" name="subject" value="{{$s.Subject}}" class="input" data-placeholder-target>
+      {{with $d.Errors.subject}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="field">
+      <label for="body" class="label">Mensagem</label>
+      <textarea id="body" name="body" class="input min-h-64" data-placeholder-target>{{$s.Body}}</textarea>
+      {{with $d.Errors.body}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="grid gap-2">
+      <p class="hint">Clique para inserir no assunto ou na mensagem:</p>
+      <div class="flex flex-wrap gap-1.5">
+        {{range $d.Placeholders}}<button type="button" class="badge font-mono" data-placeholder="{{.}}">{{.}}</button>{{end}}
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-4 text-sm">
+      <label class="flex items-center gap-2"><input type="checkbox" name="attach_pdf" {{if $s.AttachPDF}}checked{{end}}> Anexar PDF (DANFSe)</label>
+      <label class="flex items-center gap-2"><input type="checkbox" name="attach_xml" {{if $s.AttachXML}}checked{{end}}> Anexar XML</label>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-border pt-4">
+      <a href="/customers" class="btn btn-outline">Fechar</a>
+      <button type="submit" name="action" value="save" class="btn btn-primary">Salvar envio por e-mail</button>
+    </div>
+  </div>
+
+  <div class="grid content-start gap-4">
+    <p class="section-label">Prévia</p>
+    {{template "email_preview" $d.Preview}}
+
+    <div class="card card-pad grid gap-3">
+      <p class="font-medium">Enviar e-mail de teste</p>
+      <div class="flex gap-2">
+        <input name="test_to" value="{{$d.TestTo}}" class="input flex-1" placeholder="voce@exemplo.com" aria-label="E-mail para o teste">
+        <button type="submit" name="action" value="test" class="btn btn-outline">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          Enviar teste
+        </button>
+      </div>
+      {{with $d.Errors.test_to}}<p class="field-error">{{.}}</p>{{end}}
+      <p class="hint">Sai pelo Gmail acima com o texto da tela (mesmo sem salvar) e dados de exemplo, assunto com "[TESTE]" e sem cópia. Os anexos marcados vão de exemplo: DANFSe com marca "SIMULAÇÃO · SEM VALOR FISCAL" e o XML correspondente. Nada é salvo.</p>
+    </div>
+  </div>
+</form>
+<script src="/static/email.js" defer></script>
+{{end}}

@@ -1,0 +1,29 @@
+{{define "content"}}
+{{$d := .Data}}
+<form method="post" action="/signup" class="card grid w-full gap-4 p-6">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">Crie sua conta</h1>
+    <p class="page-sub">Depois você envia o certificado digital, e as notas já emitidas são consultadas no Portal Nacional (ou lidas de um XML).</p>
+  </div>
+  {{with $d.Error}}<div class="alert alert-destructive" role="alert">{{.}}</div>{{end}}
+  <div class="field">
+    <label for="name" class="label">Seu nome</label>
+    <input id="name" name="name" value="{{$d.Name}}" class="input" autocomplete="name" required>
+    {{with $d.Errors.name}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="field">
+    <label for="email" class="label">E-mail</label>
+    <input id="email" name="email" type="email" value="{{$d.Email}}" class="input" autocomplete="username" required>
+    {{with $d.Errors.email}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="field">
+    <label for="password" class="label">Senha</label>
+    <input id="password" name="password" type="password" class="input" autocomplete="new-password" minlength="12" required>
+    <p class="hint">Pelo menos 12 caracteres.</p>
+    {{with $d.Errors.password}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <button type="submit" class="btn btn-primary w-full">Criar conta</button>
+</form>
+<a href="/login" class="text-sm text-muted-foreground underline-offset-4 hover:underline">Já tenho conta — entrar</a>
+{{end}}

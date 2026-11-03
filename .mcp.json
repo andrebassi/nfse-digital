@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nfse-digital": {
+      "command": "./bin/nfse",
+      "args": ["mcp"]
+    }
+  }
+}

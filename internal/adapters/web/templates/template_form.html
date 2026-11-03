@@ -1,0 +1,80 @@
+{{define "content"}}
+{{$d := .Data}}{{$t := $d.Template}}
+<div>
+  <a href="/templates" class="text-sm text-muted-foreground hover:text-foreground">← Modelos</a>
+  <h1 class="page-title mt-1">{{if $t.ID}}Editar modelo{{else}}Novo modelo{{end}}</h1>
+</div>
+<form method="post" action="/templates" class="card card-pad grid max-w-3xl gap-4">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="id" value="{{$t.ID}}">
+  <div class="field">
+    <label for="name" class="label">Nome do modelo</label>
+    <input id="name" name="name" value="{{$t.Name}}" class="input" placeholder="Ex.: Consultoria mensal">
+    {{with $d.Errors.name}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="field">
+    <label for="description" class="label">Descrição do serviço</label>
+    <textarea id="description" name="description" class="input textarea">{{$t.Description}}</textarea>
+    <p class="hint">Aceita <code class="kbd">{mes}</code> <code class="kbd">{ano}</code> <code class="kbd">{competencia}</code>, trocados pelo mês da competência.</p>
+    {{with $d.Errors.description}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field">
+      <label for="national_tax_code" class="label">Código do serviço (tributação nacional)</label>
+      <input id="national_tax_code" name="national_tax_code" value="{{serviceCode $t.NationalTaxCode}}" class="input tabular font-mono" placeholder="01.07.01">
+      <p class="hint">{{if $t.NationalTaxCode}}{{service $t.NationalTaxCode}}{{else}}6 dígitos, como aparece nas notas já emitidas.{{end}}</p>
+      {{with $d.Errors.national_tax_code}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="field">
+      <label for="municipal_tax_code" class="label">Código municipal (opcional)</label>
+      <input id="municipal_tax_code" name="municipal_tax_code" value="{{$t.MunicipalTaxCode}}" class="input tabular font-mono">
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field">
+      <label for="nbs" class="label">NBS (opcional)</label>
+      <input id="nbs" name="nbs" value="{{$t.NBS}}" class="input tabular font-mono" placeholder="115013000">
+      <p class="hint">9 dígitos.</p>
+      {{with $d.Errors.nbs}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="grid grid-cols-[1fr_110px] gap-2">
+      <div class="field"><label for="service_city_name" class="label">Município da prestação</label><input id="service_city_name" name="service_city_name" value="{{$t.ServiceCityName}}" class="input"></div>
+      <div class="field"><label for="service_city_code" class="label">IBGE</label><input id="service_city_code" name="service_city_code" value="{{$t.ServiceCityCode}}" class="input tabular font-mono" inputmode="numeric"></div>
+      {{with $d.Errors.service_city_code}}<p class="field-error col-span-2">{{.}}</p>{{end}}
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field">
+      <label for="default_amount" class="label">Valor padrão (opcional)</label>
+      <input id="default_amount" name="default_amount" value="{{$d.Amount}}" class="input tabular" inputmode="decimal" placeholder="0,00">
+      {{with $d.Errors.default_amount}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="field"><label for="simples_tax_rate" class="label">% tributos Simples (opcional)</label><input id="simples_tax_rate" name="simples_tax_rate" value="{{$t.SimplesTaxRate}}" class="input tabular"></div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field"><label for="issqn_taxation" class="label">Tributação do ISSQN (opcional)</label><input id="issqn_taxation" name="issqn_taxation" value="{{$t.ISSQNTaxation}}" class="input tabular font-mono"></div>
+    <div class="field"><label for="issqn_retention" class="label">Retenção do ISSQN (opcional)</label><input id="issqn_retention" name="issqn_retention" value="{{$t.ISSQNRetention}}" class="input tabular font-mono"></div>
+  </div>
+  <div class="field">
+    <label for="customer_id" class="label">Tomador padrão (opcional)</label>
+    <select id="customer_id" name="customer_id" class="input">
+      <option value="0">Nenhum</option>
+      {{range $d.Customers}}<option value="{{.ID}}" {{if eq .ID $t.CustomerID}}selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </div>
+  <fieldset class="grid gap-2 border-t border-border pt-4">
+    <legend class="label mb-1">IBS/CBS (reforma tributária)</legend>
+    <div class="grid grid-cols-3 gap-4 max-sm:grid-cols-1">
+      <div class="field"><label for="ibscbs_operation" class="label">Indicador de operação</label><input id="ibscbs_operation" name="ibscbs_operation" value="{{$t.IBSCBSOperation}}" class="input tabular font-mono" placeholder="050101"></div>
+      <div class="field"><label for="ibscbs_cst" class="label">CST</label><input id="ibscbs_cst" name="ibscbs_cst" value="{{$t.IBSCBSCST}}" class="input tabular font-mono" placeholder="000"></div>
+      <div class="field"><label for="ibscbs_class" class="label">Classificação tributária</label><input id="ibscbs_class" name="ibscbs_class" value="{{$t.IBSCBSClass}}" class="input tabular font-mono" placeholder="000001"></div>
+    </div>
+    <p class="hint">Vazio usa os códigos da sua última nota emitida no Portal Nacional (050101, 000, 000001).</p>
+  </fieldset>
+  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="export" {{if $t.Export}}checked{{end}}> Exportação de serviço (tomador no exterior)</label>
+  <div class="flex justify-end gap-2">
+    <a href="/templates" class="btn btn-outline">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Salvar modelo</button>
+  </div>
+</form>
+{{end}}

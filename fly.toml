@@ -1,0 +1,44 @@
+# Painel nfse-digital no Fly, em nfse.bassi.engineer.
+#
+# SEM VOLUME: o banco é o Turso (libSQL remoto, sa-east-1, mesma cidade da
+# região gru). A URL não é segredo e fica aqui; o token vai em secret.
+# Secrets (fly secrets set): TURSO_AUTH_TOKEN, NFSE_CERT_KEY (chave do cofre
+# do certificado A1, cópia em pass bassi/nfse/cert-vault-key) e
+# NFSE_SIGNUP_EMAILS (quem pode criar conta).
+app = "nfse-digital"
+primary_region = "gru"
+
+[build]
+
+[env]
+  NFSE_DB = "libsql://nfse-andrebassi.aws-sa-east-1.turso.io"
+  NFSE_LISTEN = "0.0.0.0:8080"
+  NFSE_PUBLIC_HOST = "nfse.bassi.engineer"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Uma máquina, que dorme sem tráfego (decisão do dono, 30/10/2026).
+  # suspend e não stop: acorda em menos de 1 s, sem boot frio. ⚠️ Dormindo, o
+  # agendador (--run-schedules) não roda. A emissão vencida vale até o fim
+  # do mês (Schedule.DueRun), então sai na primeira rodada depois que alguém
+  # abrir o painel; mês inteiro sem acesso = nota não emitida sozinha.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Host fixo no check: sem ele o pedido chega com o IP interno, que o
+  # portão do painel recusa (403) — a máquina pareceria doente estando sã.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/static/app.css"
+    protocol = "http"
+    [http_service.checks.headers]
+      Host = "nfse.bassi.engineer"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

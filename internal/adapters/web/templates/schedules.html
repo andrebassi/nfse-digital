@@ -1,0 +1,35 @@
+{{define "content"}}
+{{$hide := .Hide}}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="page-title">Emissões agendadas</h1>
+    <p class="page-sub">Notas recorrentes emitidas no dia configurado, às 03:00, pelo agendador (<code>nfse serve --run-schedules</code> ou <code>nfse schedule run</code>).</p>
+  </div>
+  <a href="/schedules/new" class="btn btn-primary">+ Novo agendamento</a>
+</div>
+{{if .Data}}
+<div class="card overflow-x-auto">
+  <table class="table">
+    <thead><tr><th>Modelo</th><th>Tomador</th><th>Dia</th><th class="text-right">Valor</th><th>Competência</th><th>Próxima emissão</th></tr></thead>
+    <tbody>
+      {{range .Data}}
+      <tr>
+        <td class="font-medium">{{.Template.Name}}</td>
+        <td>{{.Customer.Name}}</td>
+        <td class="tabular">todo dia {{.Day}}</td>
+        <td class="tabular whitespace-nowrap text-right">{{brl $hide .Amount}}</td>
+        <td>{{if eq .Competence "previous-month"}}mês anterior{{else}}data da emissão{{end}}</td>
+        <td class="tabular">{{datetime .Next.EmitAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="card flex flex-col items-center gap-3 px-6 py-12 text-center">
+  <p class="font-medium">Nenhum agendamento ainda</p>
+  <p class="max-w-md text-sm text-muted-foreground">Crie um agendamento para emitir automaticamente uma nota todo mês, com aviso na véspera.</p>
+  <a href="/schedules/new" class="btn btn-primary">Criar agendamento</a>
+</div>
+{{end}}
+{{end}}

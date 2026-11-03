@@ -1,0 +1,57 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Customer}}
+<div>
+  <a href="/customers" class="text-sm text-muted-foreground hover:text-foreground">← Tomadores</a>
+  <h1 class="page-title mt-1">{{if $c.ID}}Editar tomador{{else}}Novo tomador{{end}}</h1>
+</div>
+{{if and $c.ID $d.Email}}
+<nav class="tabs w-fit" aria-label="Seções do tomador">
+  <a href="/customers/{{$c.ID}}" class="tab tab-active" aria-current="page">Cadastro</a>
+  <a href="/customers/{{$c.ID}}/email" class="tab">Envio por e-mail</a>
+</nav>
+{{end}}
+<form method="post" action="/customers" class="card card-pad grid max-w-3xl gap-4">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="id" value="{{$c.ID}}">
+  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="foreign" {{if $c.Foreign}}checked{{end}}> Tomador no exterior (exportação de serviço)</label>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field">
+      <label for="document" class="label">CPF / CNPJ</label>
+      <input id="document" name="document" value="{{doc $c.Document}}" class="input tabular font-mono">
+      {{with $d.Errors.document}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="field">
+      <label for="country" class="label">País (só exterior)</label>
+      <input id="country" name="country" value="{{$c.Country}}" class="input" placeholder="US">
+      {{with $d.Errors.country}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+  </div>
+  <div class="field">
+    <label for="name" class="label">Nome / razão social</label>
+    <input id="name" name="name" value="{{$c.Name}}" class="input">
+    {{with $d.Errors.name}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="field">
+    <label for="email" class="label">E-mail (opcional)</label>
+    <input id="email" name="email" type="email" value="{{$c.Email}}" class="input">
+    {{with $d.Errors.email}}<p class="field-error">{{.}}</p>{{end}}
+  </div>
+  <div class="grid grid-cols-[1fr_140px] gap-4 max-sm:grid-cols-1">
+    <div class="field"><label for="city_name" class="label">Município (opcional)</label><input id="city_name" name="city_name" value="{{$c.CityName}}" class="input" placeholder="São José dos Campos/SP"></div>
+    <div class="field"><label for="city_code" class="label">Código IBGE</label><input id="city_code" name="city_code" value="{{$c.CityCode}}" class="input tabular font-mono" inputmode="numeric"></div>
+  </div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field"><label for="zip" class="label">CEP</label><input id="zip" name="zip" value="{{$c.ZIP}}" class="input tabular"></div>
+    <div class="field"><label for="district" class="label">Bairro</label><input id="district" name="district" value="{{$c.District}}" class="input"></div>
+  </div>
+  <div class="field"><label for="street" class="label">Logradouro</label><input id="street" name="street" value="{{$c.Street}}" class="input"></div>
+  <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+    <div class="field"><label for="number" class="label">Número</label><input id="number" name="number" value="{{$c.Number}}" class="input"></div>
+    <div class="field"><label for="complement" class="label">Complemento (opcional)</label><input id="complement" name="complement" value="{{$c.Complement}}" class="input"></div>
+  </div>
+  <div class="flex justify-end gap-2">
+    <a href="/customers" class="btn btn-outline">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Salvar tomador</button>
+  </div>
+</form>
+{{end}}

@@ -1,0 +1,12 @@
+# Fora da imagem: binários locais, dado real do dono e referência de tela.
+# docs/reference/private guarda XML e dado fiscal real — nunca vai para build.
+bin/
+nfse
+docs/
+testdata/
+*.db
+*.db-*
+*.pfx
+*.p12
+.env*
+cover.out

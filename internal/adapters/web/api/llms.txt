@@ -1,0 +1,221 @@
+# nfse-digital — API REST para emitir NFS-e pelo Emissor Nacional
+
+> API REST do nfse-digital: emite, lista, consulta e cancela NFS-e na SEFIN
+> (Emissor Nacional, padrão nacional da NFS-e) em nome do emitente dono do
+> token, e entrega o DANFSe em PDF. JSON in, JSON out. Autenticação por token
+> Bearer. Toda emissão é idempotente pela idempotency_key do integrador.
+> Tomadores e modelos de serviço são cadastrados no painel; a API só os lista.
+
+Este arquivo segue a convenção llms.txt (https://llmstxt.org/). Existe para
+que um agente (Claude, Cursor, Codex) integre um sistema a esta API sem ler
+mais nada. É mais detalhado que a documentação navegável: traz todo status
+HTTP, a regra de cada erro e a ordem certa das chamadas.
+
+- **URL base**: {{.BaseURL}}/api/v1
+- **Contrato OpenAPI 3.1**: {{.BaseURL}}/api/v1/openapi.json
+- **Documentação navegável**: {{.BaseURL}}/api/docs
+- **Este arquivo**: {{.BaseURL}}/api/llms.txt
+- **Onde gerar o token**: {{.BaseURL}}/integrations/tokens
+
+---
+
+## Índice
+
+1. [Autenticação](#autenticação)
+2. [Fluxo de integração, na ordem](#fluxo-de-integração-na-ordem)
+3. [Rotas](#rotas)
+4. [Emitir](#emitir)
+5. [Consultar e listar](#consultar-e-listar)
+6. [Cancelar](#cancelar)
+7. [DANFSe](#danfse)
+8. [Objeto Invoice](#objeto-invoice)
+9. [Erros](#erros)
+10. [Regras que um agente não pode quebrar](#regras-que-um-agente-não-pode-quebrar)
+11. [Referências externas](#referências-externas)
+
+## Autenticação
+
+Cabeçalho em toda rota, menos as três públicas (openapi.json, docs, llms.txt):
+
+```
+Authorization: Bearer nf_<43 caracteres>
+```
+
+- O token nasce em {{.BaseURL}}/integrations/tokens e aparece **uma vez só**.
+- É o mesmo token do servidor MCP ({{.BaseURL}}/mcp). Revogar no painel derruba
+  API e MCP na hora.
+- Cada token pertence a uma conta: a API só enxerga as notas, tomadores e
+  modelos daquela conta. Nota de outra conta responde 404, não 403.
+- Token ausente, inválido ou revogado: 401 com `WWW-Authenticate: Bearer`.
+  A resposta não diz qual dos três.
+
+## Fluxo de integração, na ordem
+
+1. `GET {{.BaseURL}}/api/v1/account` — confirma o token e mostra o ambiente
+   (`homologation` ou `production`). Em produção a nota tem valor fiscal.
+2. `GET {{.BaseURL}}/api/v1/customers?q=<nome ou CNPJ>` — acha o `customer_id`.
+3. `GET {{.BaseURL}}/api/v1/templates` — acha o `template_id`.
+4. `POST {{.BaseURL}}/api/v1/invoices` com a `idempotency_key` = id da fatura.
+5. Guarde nada além da sua chave: `GET {{.BaseURL}}/api/v1/invoices/by-key?idempotency_key=<chave>`
+   devolve a nota quando precisar.
+
+## Rotas
+
+| Método | URL | Auth | Status possíveis | Para quê |
+|---|---|---|---|---|
+| GET | {{.BaseURL}}/api/v1/openapi.json | não | 200 | contrato OpenAPI 3.1 |
+| GET | {{.BaseURL}}/api/docs | não | 200 | documentação navegável |
+| GET | {{.BaseURL}}/api/llms.txt | não | 200 | este arquivo |
+| GET | {{.BaseURL}}/api/v1/account | sim | 200, 401, 404 | emitente, ambiente, próximo número da DPS |
+| GET | {{.BaseURL}}/api/v1/customers?q= | sim | 200, 401 | lista tomadores |
+| GET | {{.BaseURL}}/api/v1/templates?q= | sim | 200, 401 | lista modelos de serviço |
+| GET | {{.BaseURL}}/api/v1/invoices?status=&limit= | sim | 200, 400, 401 | lista notas, mais recente primeiro |
+| POST | {{.BaseURL}}/api/v1/invoices | sim | 200, 201, 202, 400, 401, 409, 422 | emite |
+| GET | {{.BaseURL}}/api/v1/invoices/{id} | sim | 200, 401, 404 | consulta pelo id |
+| GET | {{.BaseURL}}/api/v1/invoices/by-key?idempotency_key= | sim | 200, 401, 404 | consulta pela idempotency_key |
+| POST | {{.BaseURL}}/api/v1/invoices/{id}/cancel | sim | 200, 400, 401, 404, 409, 422, 502, 503 | cancela na SEFIN |
+| GET | {{.BaseURL}}/api/v1/invoices/{id}/danfse | sim | 200, 401, 404, 409, 503 | PDF do DANFSe |
+
+Rota fora da tabela responde 404 em JSON.
+
+## Emitir
+
+```bash
+curl -X POST {{.BaseURL}}/api/v1/invoices \
+  -H "Authorization: Bearer $NFSE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "fatura-2026-11-0042",
+    "customer_id": 1,
+    "template_id": 1,
+    "amount": "1500.00",
+    "competence": "2026-11-01",
+    "description": "Suporte técnico - novembro"
+  }'
+```
+
+| Campo | Obrigatório | Formato | Vazio significa |
+|---|---|---|---|
+| idempotency_key | sim | texto livre, estável | 422 |
+| customer_id | sim | inteiro (GET /customers) | 422 |
+| template_id | sim | inteiro (GET /templates) | 422 |
+| amount | não | `1500.00` ou `1.500,00` | valor padrão do modelo |
+| competence | não | `AAAA-MM-DD` | hoje (America/Sao_Paulo) |
+| description | não | texto | descrição do modelo com `{mes}` e `{ano}` resolvidos |
+| confirm_production | só em produção | boolean | false → 409 com o emitente em produção |
+
+Campo que não está na tabela é recusado com 400 (um `confirmProduction`
+digitado errado não passa em silêncio).
+
+| Status | Quando | O que fazer |
+|---|---|---|
+| 201 | nota nova; `status` é `authorized` ou `rejected` | rejeitada: leia `error_code` e `message`, corrija o cadastro e emita com **outra** chave |
+| 200 | a `idempotency_key` já tinha nota | nada foi emitido; é a mesma nota da primeira chamada |
+| 202 | SEFIN sem resposta definitiva; `status` = `pending` | consulte por `by-key` antes de qualquer nova tentativa |
+| 409 | emitente em produção sem `confirm_production: true` | peça confirmação a uma pessoa e repita com o campo |
+| 422 | dado inválido; `fields` diz o problema por campo | corrija o campo apontado |
+
+Resposta 201 traz `Location: {{.BaseURL}}/api/v1/invoices/<id>`.
+
+## Consultar e listar
+
+```bash
+curl "{{.BaseURL}}/api/v1/invoices/by-key?idempotency_key=fatura-2026-11-0042" -H "Authorization: Bearer $NFSE_TOKEN"
+curl {{.BaseURL}}/api/v1/invoices/42 -H "Authorization: Bearer $NFSE_TOKEN"
+curl "{{.BaseURL}}/api/v1/invoices?status=authorized&limit=50" -H "Authorization: Bearer $NFSE_TOKEN"
+```
+
+`limit` vai de 1 a 100 (padrão 20); `status` aceita `pending`, `authorized`,
+`rejected`, `cancelled`. Fora disso: 400.
+
+## Cancelar
+
+```bash
+curl -X POST {{.BaseURL}}/api/v1/invoices/42/cancel \
+  -H "Authorization: Bearer $NFSE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "erro_emissao", "description": "Valor da fatura informado errado"}'
+```
+
+| Campo | Valores |
+|---|---|
+| reason | `erro_emissao`, `servico_nao_prestado`, `outros` |
+| description | justificativa de 15 a 255 caracteres |
+| confirm_production | true obrigatório para nota de produção |
+
+| Status | Quando |
+|---|---|
+| 200 | cancelada; `status` = `cancelled` |
+| 409 | a nota não está autorizada, ou é de produção sem `confirm_production` |
+| 422 | `fields` (motivo ou justificativa inválidos) ou a SEFIN recusou: `invoice` vem junto, ainda `authorized`, com o motivo em `message` |
+| 502 | a SEFIN não respondeu; nada mudou, pode repetir |
+| 503 | cancelamento desligado neste painel |
+
+Passado o prazo do município, a SEFIN recusa e o cancelamento só sai pela
+prefeitura do município de incidência — a `message` diz isso.
+
+## DANFSe
+
+```bash
+curl -o danfse.pdf {{.BaseURL}}/api/v1/invoices/42/danfse -H "Authorization: Bearer $NFSE_TOKEN"
+```
+
+Só nota `authorized` ou `cancelled` (senão 409). O PDF é gerado pelo
+nfse-digital a partir do XML da NFS-e.
+
+## Objeto Invoice
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| id | inteiro | id no nfse-digital |
+| idempotency_key | texto | a chave da emissão (ausente em nota emitida pelo painel) |
+| status | `pending` · `authorized` · `rejected` · `cancelled` | para máquina |
+| status_label | texto | para pessoa: pendente, autorizada, rejeitada, cancelada |
+| environment | `homologation` · `production` | |
+| dps_series, dps_number | texto, inteiro | numeração da DPS enviada |
+| nfse_number, access_key | texto | só quando autorizada; a chave tem 50 dígitos |
+| amount | texto | ponto decimal, duas casas: `1500.00` |
+| competence | `AAAA-MM-DD` | |
+| issued_at | RFC 3339 | |
+| customer_id, template_id | inteiro | |
+| description | texto | |
+| error_code | texto | código da SEFIN, como `E0039` |
+| message | texto | erro da SEFIN traduzido, ou aviso de pendência |
+
+## Erros
+
+Todo erro é JSON: `{"error": "...", "fields": {...}, "invoice": {...}}` —
+`fields` e `invoice` só quando se aplicam.
+
+| Situação | HTTP |
+|---|---|
+| JSON inválido, campo desconhecido, `limit`/`status` fora da faixa | 400 |
+| token ausente, inválido ou revogado | 401 |
+| Host não permitido (proteção contra DNS rebinding) | 403 |
+| registro inexistente ou de outra conta | 404 |
+| produção sem confirmação; nota fora do status exigido | 409 |
+| dado inválido por campo; SEFIN recusou o cancelamento | 422 |
+| falha interna | 500 |
+| SEFIN sem resposta no cancelamento | 502 |
+| recurso desligado neste painel | 503 |
+
+## Regras que um agente não pode quebrar
+
+1. **Nunca** gerar `idempotency_key` aleatória por tentativa. A chave é o id
+   da fatura: é ela que impede nota em dobro quando a rede cai no meio.
+2. Resposta 202 ou timeout: consultar `by-key` antes de reenviar. Reenviar é
+   seguro **só** com a mesma chave.
+3. `confirm_production: true` só depois de uma pessoa confirmar a emissão. A
+   nota de produção tem valor fiscal e cancelar depende do prazo do município.
+4. Cancelar é irreversível. Confirmar com uma pessoa antes.
+5. Não cadastrar tomador nem modelo pela API: não há rota para isso. Peça ao
+   dono para cadastrar no painel ({{.BaseURL}}/customers e {{.BaseURL}}/templates).
+
+## Referências externas
+
+- Convenção llms.txt: https://llmstxt.org/
+- OpenAPI 3.1: https://spec.openapis.org/oas/v3.1.0
+- Portal da NFS-e (Emissor Nacional): https://www.gov.br/nfse/pt-br
+- Documentação técnica da NFS-e nacional: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica
+- Bearer token (RFC 6750): https://www.rfc-editor.org/rfc/rfc6750
+- Documentação renderizada por Scalar: https://github.com/scalar/scalar

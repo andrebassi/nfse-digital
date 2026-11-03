@@ -1,0 +1,148 @@
+/* Entrada do Tailwind v4. Gera static/app.css com `task css`.
+   Visual do shadcn admin (escolha do dono em 29/10/2026): tokens de cor
+   zinco, raio de 8px, cards de borda leve, abas em pílula. */
+@import "tailwindcss";
+@source "../templates";
+
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #09090b;
+  --color-card: #ffffff;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-primary: #18181b;
+  --color-primary-foreground: #fafafa;
+  --color-sidebar: #fafafa;
+  --color-destructive: #ef4444;
+  --color-destructive-soft: #fef2f2;
+  --color-destructive-ink: #991b1b;
+  --color-success: #16a34a;
+  --color-success-soft: #f0fdf4;
+  --color-warning-soft: #fffbeb;
+  --color-warning-ink: #92400e;
+  --color-ring: #a1a1aa;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  html { @apply bg-background text-foreground antialiased; font-family: var(--font-sans); }
+  *:focus-visible { @apply outline-2 outline-offset-2 outline-ring; }
+  h1, h2, h3 { text-wrap: balance; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  /* Botões: primário preto, contorno, fantasma e destrutivo, como no shadcn. */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-9 px-4 transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap; }
+  .btn-primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
+  .btn-outline { @apply border border-input bg-background hover:bg-muted; }
+  .btn-ghost { @apply hover:bg-muted; }
+  .btn-sm { @apply h-8 px-3 text-xs; }
+  /* Botão de destaque verde-água, o do "Gerar token". */
+  .btn-destructive { @apply bg-destructive text-white hover:bg-destructive/90; }
+
+  /* Seletor de ambiente do cabeçalho: a opção ativa em destaque (amarelo em
+     homologação, vermelho em produção), a outra como botão discreto. */
+  .env-switch { @apply inline-flex items-center gap-1 rounded-lg border border-border bg-background p-[3px]; }
+  /* Conta sem certificado: o ambiente não troca até o A1 chegar. */
+  .env-locked { @apply pointer-events-none opacity-50; }
+  .env-option { @apply rounded-md px-2.5 py-[3px] font-mono text-[11px] tracking-wider text-muted-foreground hover:text-foreground; }
+  .env-homologation { @apply border border-amber-200 bg-warning-soft font-semibold text-warning-ink; }
+  .env-production { @apply bg-destructive font-semibold text-white; }
+  .clock { @apply rounded-lg border border-border bg-background px-2.5 py-[5px] font-mono text-[11px] tracking-wider text-muted-foreground; }
+
+  /* Campos de formulário. */
+  .label { @apply text-sm font-medium leading-none; }
+  .input { @apply flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs placeholder:text-muted-foreground; }
+  .textarea { @apply h-auto min-h-20 py-2; }
+  .hint { @apply text-xs text-muted-foreground; }
+  .field-error { @apply text-xs font-medium text-destructive; }
+  .field { @apply grid gap-2; }
+
+  /* Cards e cabeçalhos de página. */
+  .card { @apply rounded-lg border border-border bg-card shadow-xs; }
+  .card-pad { @apply p-5; }
+  .page-title { @apply text-2xl font-semibold tracking-tight; }
+  .page-sub { @apply text-sm text-muted-foreground; }
+  .section-label { @apply text-xs font-medium uppercase tracking-wider text-muted-foreground; }
+
+  /* Importação do Portal Nacional (janela e página /portal): cartão com a
+     barra de quadrados (um por nota), as quatro etapas e as mais recentes. */
+  .import-dialog { @apply m-auto w-[min(760px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border border-border bg-sidebar p-6 shadow-xl backdrop:bg-black/40; }
+  .import-head { @apply mb-4 flex items-start justify-between gap-4; }
+  .import-card { @apply grid gap-5 rounded-lg border border-border bg-card p-8 shadow-xs max-sm:p-5; }
+  .import-title { @apply text-center text-2xl font-semibold tracking-tight; }
+  .import-sub { @apply mx-auto max-w-xl text-center text-sm text-muted-foreground; }
+  .import-bar { @apply flex h-3 gap-1; }
+  .import-segment { @apply h-full flex-1 rounded-[2px] bg-emerald-300; }
+  .import-segment-strong { @apply bg-emerald-700; }
+  /* Enquanto consulta: um quadrado só, pulsando — o total ainda não se sabe. */
+  .import-bar-running .import-segment { @apply animate-pulse bg-emerald-200; }
+  .import-meta { @apply flex justify-between font-mono text-xs tracking-wider text-muted-foreground; }
+  .import-meta strong { @apply font-semibold text-emerald-700; }
+  .import-steps { @apply grid gap-3; }
+  .import-step { @apply flex items-center gap-3 text-sm text-muted-foreground; }
+  .import-step::before { content: ""; @apply size-4 shrink-0 rounded-full border border-border; }
+  .import-step-active { @apply text-foreground; }
+  .import-step-active::before { @apply animate-spin border-2 border-emerald-500 border-t-transparent; }
+  .import-step-done { @apply text-foreground; }
+  .import-step-done::before { content: "✓"; @apply grid place-items-center border-0 text-xs font-bold text-emerald-700; }
+  .import-step-meta { @apply ml-auto font-mono text-xs tracking-wider text-muted-foreground; }
+  .import-list { @apply divide-y divide-border rounded-lg border border-border; }
+  .import-row { @apply grid grid-cols-[4.5rem_1fr_auto_auto] items-center gap-4 px-4 py-3 text-sm max-sm:grid-cols-[4rem_1fr]; }
+  .import-number { @apply font-mono text-xs text-muted-foreground; }
+  .import-customer { @apply truncate; }
+  .import-competence { @apply font-mono text-xs text-muted-foreground max-sm:hidden; }
+  .import-amount { @apply tabular-nums font-mono text-sm max-sm:col-start-2; }
+
+  /* Badges: contorno neutro e variantes de estado da nota. */
+  .badge { @apply inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium; }
+  .badge-authorized { @apply border-transparent bg-success-soft text-success; }
+  .badge-rejected { @apply border-transparent bg-destructive text-white; }
+  .badge-cancelled { @apply text-muted-foreground; }
+  .badge-pending { @apply border-transparent bg-warning-soft text-warning-ink; }
+
+  /* Abas em pílula. */
+  .tabs { @apply inline-flex items-center rounded-lg bg-muted p-1 text-muted-foreground; }
+  .tab { @apply inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium hover:text-foreground; }
+  .tab-active { @apply bg-background text-foreground shadow-sm; }
+  /* Aba travada até a conta enviar o certificado. */
+  .tab-disabled { @apply pointer-events-none opacity-40; }
+
+  /* Navegação da barra lateral. */
+  /* Cartão da conta no rodapé do menu: avatar, nome, e-mail e sair. */
+  .account-card { @apply flex items-center gap-2.5 rounded-xl border border-border bg-background py-2.5 pr-1.5 pl-2.5; }
+  .account-avatar { @apply grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground; }
+  .nav-link { @apply flex items-center justify-between rounded-md px-3 py-2 text-sm text-foreground/80 hover:bg-muted hover:text-foreground; }
+  /* Item travado até a conta enviar o certificado (a rota também recusa). */
+  .nav-disabled { @apply pointer-events-none opacity-40; }
+  .nav-active { @apply bg-muted font-medium text-foreground; }
+
+  /* Tabela. */
+  .table { @apply w-full text-sm; }
+  .table th { @apply h-10 px-4 text-left align-middle font-medium text-muted-foreground border-b border-border; }
+  .table td { @apply px-4 py-3 align-middle border-b border-border; }
+  .table tr:last-child td { @apply border-b-0; }
+  .table tbody tr { @apply hover:bg-muted/50; }
+  .row-link { @apply block; }
+
+  /* Avisos. */
+  .alert { @apply rounded-lg border border-border px-4 py-3 text-sm; }
+  .alert-warning { @apply border-amber-200 bg-warning-soft text-warning-ink; }
+  .alert-destructive { @apply border-red-200 bg-destructive-soft text-destructive-ink; }
+  .alert-success { @apply border-green-200 bg-success-soft text-success; }
+
+  .kbd { @apply rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground; }
+  .code { @apply rounded-md bg-muted px-3 py-2 font-mono text-xs break-all; }
+
+  /* Passo numerado da tela de Integrações: círculo à esquerda, conteúdo à direita. */
+  .step { @apply grid grid-cols-[2rem_1fr] items-start gap-3 text-sm; }
+  /* Área de soltar arquivo: o próprio <label> recebe o arraste e repassa ao input, sem JavaScript. */
+  .dropzone { @apply grid cursor-pointer place-items-center gap-2 rounded-xl border border-dashed border-border bg-muted/60 px-6 py-10 text-center text-sm hover:bg-muted; }
+  .step-number { @apply grid size-7 place-items-center rounded-full bg-emerald-200 text-xs font-semibold text-emerald-900; }
+}

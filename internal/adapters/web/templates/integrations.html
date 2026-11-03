@@ -1,0 +1,304 @@
+{{define "content"}}
+{{$d := .Data}}
+{{$tok := "<TOKEN>"}}{{if $d.Token}}{{$tok = $d.Token}}{{end}}
+<div>
+  <h1 class="page-title">Integrações</h1>
+  <p class="page-sub">Emita, consulte e cancele notas conversando com um agente.</p>
+</div>
+
+<nav class="tabs w-fit" aria-label="Seções de integrações">
+  {{range $d.Sections}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}{{if .Count}} <span class="tabular text-xs text-muted-foreground">{{.Count}}</span>{{end}}</a>{{end}}
+</nav>
+
+{{if eq $d.Section "connect"}}
+
+<section class="grid gap-3" aria-label="Conectar um agente">
+  <div class="card card-pad grid gap-6">
+    <div class="flex flex-wrap gap-3">
+      <nav class="tabs w-fit" aria-label="Agente">
+        {{range $d.Agents}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+      </nav>
+      {{if eq $d.Agent "claude"}}
+      <nav class="tabs w-fit" aria-label="Cliente do Claude">
+        {{range $d.Clients}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+      </nav>
+      {{end}}
+    </div>
+
+    {{if or (eq $d.Agent "chatgpt") (eq $d.Agent "grok")}}
+    <div class="alert alert-warning grid gap-1.5 text-sm">
+      <p class="font-medium">{{if eq $d.Agent "chatgpt"}}O ChatGPT{{else}}O Grok{{end}} se conecta a servidores MCP a partir da nuvem dele, então precisa de uma URL pública.</p>
+      <p>O nfse-digital atende só em <code>{{$d.BaseURL}}</code>, nesta máquina: a nuvem do {{if eq $d.Agent "chatgpt"}}ChatGPT{{else}}Grok{{end}} não alcança esse endereço. Use Claude ou Codex.</p>
+    </div>
+    {{else}}
+    {{$httpTab := and $d.HTTP (or (eq $d.Agent "codex") (eq $d.Client "code"))}}
+    <ol class="grid gap-6">
+      {{if $httpTab}}
+      <li class="step">
+        <span class="step-number">1</span>
+        <div class="grid gap-3">
+          <p>Gere um token (ele aparece uma única vez). Os passos abaixo são preenchidos com ele.</p>
+          {{if $d.Token}}
+          <div class="alert alert-success grid gap-2" role="status">
+            <p class="font-medium">Token gerado. Copie agora: ele não aparece de novo.</p>
+            <p class="code select-all">{{$d.Token}}</p>
+          </div>
+          {{else}}
+          <form method="post" action="/integrations/tokens">
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <input type="hidden" name="agent" value="{{$d.Agent}}">
+            <input type="hidden" name="client" value="{{$d.Client}}">
+            <button type="submit" class="btn btn-primary">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+              Gerar token
+            </button>
+          </form>
+          {{end}}
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-number">2</span>
+        <div class="grid gap-2">
+          <p>Rode no seu terminal para registrar o servidor MCP:</p>
+          <p class="section-label">Comando</p>
+          {{if eq $d.Agent "codex"}}
+          <p class="code select-all whitespace-pre-wrap" title="Um clique seleciona o comando inteiro">export NFSE_TOKEN="{{$tok}}"
+codex mcp add nfse-digital --url {{$d.MCPURL}} --bearer-token-env-var NFSE_TOKEN</p>
+          {{else}}
+          <p class="code select-all" title="Um clique seleciona o comando inteiro">claude mcp add --transport http nfse-digital {{$d.MCPURL}} --header "Authorization: Bearer {{$tok}}"</p>
+          {{end}}
+          <p class="hint">Um clique no comando seleciona tudo; depois é só copiar.</p>
+        </div>
+      </li>
+      {{else}}
+      <li class="step">
+        <span class="step-number">1</span>
+        <div class="grid gap-2">
+          {{if eq $d.Client "desktop"}}
+          <p>O Claude Desktop liga servidores locais pelo arquivo de configuração, sem token. Acrescente em <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>, dentro de <code>mcpServers</code>, e reinicie o app:</p>
+          <pre class="code select-all whitespace-pre" title="Um clique seleciona o trecho inteiro">"nfse-digital": { "command": "{{$d.Binary}}", "args": ["mcp"] }</pre>
+          {{else}}
+          <p>Rode no seu terminal para registrar o servidor MCP (local, por stdio):</p>
+          <p class="code select-all">{{if eq $d.Agent "codex"}}codex{{else}}claude{{end}} mcp add nfse-digital -- {{$d.Binary}} mcp</p>
+          {{end}}
+        </div>
+      </li>
+      {{end}}
+      {{if $d.Skill}}
+      <li class="step">
+        <span class="step-number">{{if $httpTab}}3{{else}}2{{end}}</span>
+        <div class="grid gap-2">
+          <p>(Opcional, recomendado) Baixe a skill e coloque na pasta de skills do agente.</p>
+          <a href="/integrations/skill.md" class="btn btn-outline btn-sm justify-self-start">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            Baixar skill.md
+          </a>
+        </div>
+      </li>
+      {{end}}
+      <li class="step">
+        <span class="step-number">{{if $httpTab}}{{if $d.Skill}}4{{else}}3{{end}}{{else}}{{if $d.Skill}}3{{else}}2{{end}}{{end}}</span>
+        <p>Peça ao agente: <em>“qual o status da minha conta no nfse?”</em> e depois clique em <strong>Testar conexão</strong> aqui embaixo.</p>
+      </li>
+    </ol>
+    <div class="grid gap-3 border-t border-border pt-5">
+      <form method="post" action="/integrations/test">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="agent" value="{{$d.Agent}}">
+        <input type="hidden" name="client" value="{{$d.Client}}">
+        <button type="submit" class="btn btn-outline">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>
+          Testar conexão
+        </button>
+      </form>
+      {{if $d.Tested}}
+        {{with $d.Contacts}}{{with index . 0}}
+        <div class="alert alert-success" role="status">Conectado: <strong>{{.Client}}</strong> chamou <code>{{.Tool}}</code> em {{datetime .At}}.</div>
+        {{end}}{{else}}
+        <div class="alert alert-warning" role="status">Nenhum agente falou com o nfse ainda. Registre o servidor, peça o status da conta ao agente e teste de novo.</div>
+        {{end}}
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</section>
+
+{{end}}
+
+{{if and $d.HTTP (eq $d.Section "api")}}
+{{$base := printf "%s/api/v1" $d.BaseURL}}
+<section class="grid gap-3" aria-label="API REST">
+  <p class="section-label">API REST (integração de sistemas)</p>
+  <div class="card card-pad grid gap-6">
+    <div class="grid gap-2">
+      <p>Integre seu sistema (ERP, faturamento) para <strong>emitir, listar, consultar e cancelar</strong> notas. Tomadores e modelos de serviço continuam sendo cadastrados aqui no painel; a API só os lista.</p>
+      <p class="text-sm text-muted-foreground">Toda emissão leva uma <code>idempotency_key</code> sua (ex.: o id da fatura). Ela é a chave de idempotência: reenviar a mesma chave nunca emite outra nota, devolve a mesma. E você consulta a nota por ela ou pelo id.</p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="grid gap-2">
+        <p class="section-label">URL base</p>
+        <div class="flex items-center gap-2">
+          <p class="code flex-1 select-all" id="api-base">{{$base}}</p>
+          <button type="button" class="btn btn-outline btn-sm" data-copy="api-base" hidden>Copiar</button>
+        </div>
+      </div>
+      <div class="grid gap-2">
+        <p class="section-label">Autenticação</p>
+        <div class="flex items-center gap-2">
+          <p class="code flex-1 select-all" id="api-auth">Authorization: Bearer {{$tok}}</p>
+          <button type="button" class="btn btn-outline btn-sm" data-copy="api-auth" hidden>Copiar</button>
+        </div>
+      </div>
+    </div>
+
+    {{if $d.Token}}
+    <div class="alert alert-success grid gap-2" role="status">
+      <p class="font-medium">Token gerado. Copie agora: ele não aparece de novo. Os exemplos abaixo já estão com ele.</p>
+      <p class="code select-all">{{$d.Token}}</p>
+    </div>
+    {{else}}
+    <form method="post" action="/integrations/tokens" class="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="section" value="api">
+      <input type="hidden" name="op" value="{{$d.APIOp}}">
+      <button type="submit" class="btn btn-outline btn-sm">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+        Gerar token
+      </button>
+      <span class="hint">O mesmo token serve à API e ao MCP; ele aparece uma única vez.</span>
+    </form>
+    {{end}}
+
+    <nav class="tabs w-fit" aria-label="Operação da API">
+      {{range $d.APIOps}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+
+    <div class="grid gap-2">
+      <p class="section-label">Exemplo</p>
+      <div class="flex items-start gap-2">
+        <pre class="code flex-1 select-all whitespace-pre overflow-x-auto" id="api-example" title="Um clique seleciona o comando inteiro">
+{{- if eq $d.APIOp "emit"}}curl -X POST {{$base}}/invoices \
+  -H "Authorization: Bearer {{$tok}}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "fatura-2026-11-0042",
+    "customer_id": {{$d.APICustomerID}},
+    "template_id": {{$d.APITemplateID}},
+    "amount": "1500.00",
+    "description": "Suporte técnico - novembro"
+  }'
+{{- else if eq $d.APIOp "show"}}# pela chave da emissão (o id da fatura no seu sistema)
+curl "{{$base}}/invoices/by-key?idempotency_key=fatura-2026-11-0042" \
+  -H "Authorization: Bearer {{$tok}}"
+
+# ou pelo id da nota
+curl {{$base}}/invoices/42 \
+  -H "Authorization: Bearer {{$tok}}"
+{{- else if eq $d.APIOp "list"}}curl "{{$base}}/invoices?status=authorized&amp;limit=20" \
+  -H "Authorization: Bearer {{$tok}}"
+{{- else}}curl -X POST {{$base}}/invoices/42/cancel \
+  -H "Authorization: Bearer {{$tok}}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "erro_emissao",
+    "description": "Valor da fatura informado errado"
+  }'
+{{- end}}</pre>
+        <button type="button" class="btn btn-outline btn-sm" data-copy="api-example" hidden>Copiar</button>
+      </div>
+      {{if eq $d.APIOp "emit"}}<p class="hint">Sem <code>amount</code>, <code>competence</code> ou <code>description</code>, vale o que está no modelo. Com o emitente em produção, acrescente <code>"confirm_production": true</code>.</p>{{end}}
+      {{if eq $d.APIOp "cancel"}}<p class="hint">Irreversível. Motivos: <code>erro_emissao</code>, <code>servico_nao_prestado</code> ou <code>outros</code>; justificativa de 15 a 255 caracteres.</p>{{end}}
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 border-t border-border pt-5">
+      <a href="/api/docs" target="_blank" rel="noopener" class="btn btn-primary">
+        Documentação da API
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7"/></svg>
+      </a>
+      <a href="/api/v1/openapi.json" target="_blank" rel="noopener" class="btn btn-outline">
+        OpenAPI
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7"/></svg>
+      </a>
+      <a href="/api/llms.txt" target="_blank" rel="noopener" class="btn btn-outline">
+        llms.txt
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7"/></svg>
+      </a>
+      <p class="text-sm text-muted-foreground">Referência completa com exemplos em curl, Node.js e Python, e o llms.txt para o seu agente (Claude, Cursor) integrar sozinho.</p>
+    </div>
+  </div>
+</section>
+<script src="/static/copy.js" defer></script>
+{{end}}
+
+{{if and $d.HTTP (eq $d.Section "tokens")}}
+<section class="grid gap-3" aria-label="Tokens de API">
+  {{if $d.Tokens}}
+  <div class="card">
+    <table class="table">
+      <thead><tr><th>Token</th><th>Criado</th><th>Último uso</th><th></th></tr></thead>
+      <tbody>
+      {{range $d.Tokens}}
+        <tr>
+          <td class="font-mono text-xs">nf_…{{.Hint}}</td>
+          <td class="tabular">{{datetime .CreatedAt}}</td>
+          <td class="tabular">{{if .LastUsedAt.IsZero}}nunca{{else}}{{datetime .LastUsedAt}}{{end}}</td>
+          <td class="text-right">
+            <form method="post" action="/integrations/tokens/{{.ID}}/revoke">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <button type="submit" class="btn btn-ghost btn-sm">Revogar</button>
+            </form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="card card-pad grid place-items-center gap-1 border-dashed py-12 text-center">
+    <p class="font-medium">Nenhum token ainda</p>
+    <p class="text-sm text-muted-foreground">Gere um token na aba <a href="/integrations" class="underline">Conectar agente</a>.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{if eq $d.Section "agents"}}
+<section class="grid gap-3" aria-label="Agentes conectados">
+  {{if $d.Contacts}}
+  <div class="card">
+    <table class="table">
+      <thead><tr><th>Agente</th><th>Última ferramenta</th><th>Quando</th></tr></thead>
+      <tbody>
+      {{range $d.Contacts}}<tr><td>{{.Client}}</td><td class="font-mono text-xs">{{.Tool}}</td><td class="tabular">{{datetime .At}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="card card-pad grid place-items-center gap-1 border-dashed py-12 text-center">
+    <p class="font-medium">Nenhum agente conectado ainda</p>
+    <p class="text-sm text-muted-foreground">Conecte o primeiro agente na aba <a href="/integrations" class="underline">Conectar agente</a>.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{if eq $d.Section "tools"}}
+<section class="grid gap-3" aria-label="Ferramentas">
+  <div class="card">
+    <table class="table">
+      <thead><tr><th>Ferramenta</th><th>Para quê</th></tr></thead>
+      <tbody>
+      {{range $d.Tools}}
+        <tr>
+          <td class="font-mono text-xs">{{.Name}}{{if .Writes}} <span class="badge border-transparent bg-destructive text-white">SEFIN</span>{{end}}</td>
+          <td class="text-sm">{{.Description}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">As marcadas com SEFIN agem em nome do emitente. Em produção, exigem <code>confirm_production: true</code> — e o agente só deve mandar isso depois de você confirmar.</p>
+</section>
+{{end}}
+{{end}}

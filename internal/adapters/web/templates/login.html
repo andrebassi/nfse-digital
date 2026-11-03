@@ -1,0 +1,26 @@
+{{define "content"}}
+{{$d := .Data}}
+<form method="post" action="/login" class="card grid w-full gap-4 p-6">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">Entre na sua conta</h1>
+    <p class="page-sub">Emita NFS-e pelo padrão nacional, direto ou por um agente.</p>
+  </div>
+  {{with $d.Notice}}<div class="alert alert-warning" role="status">{{.}}</div>{{end}}
+  {{with $d.Error}}<div class="alert alert-destructive" role="alert">{{.}}</div>{{end}}
+  <div class="field">
+    <label for="email" class="label">E-mail</label>
+    <input id="email" name="email" type="email" value="{{$d.Email}}" class="input" autocomplete="username" required>
+  </div>
+  <div class="field">
+    <label for="password" class="label">Senha</label>
+    <input id="password" name="password" type="password" class="input" autocomplete="current-password" required>
+  </div>
+  <button type="submit" class="btn btn-primary w-full">Entrar</button>
+  <div class="flex items-center gap-3 text-xs uppercase text-muted-foreground"><span class="h-px flex-1 bg-border"></span>ou<span class="h-px flex-1 bg-border"></span></div>
+  <button type="button" class="btn btn-outline w-full" data-passkey="login" data-csrf="{{.CSRF}}">Entrar com passkey</button>
+  <p class="alert alert-destructive text-sm" data-passkey-error hidden></p>
+</form>
+<script src="/static/passkey.js" defer></script>
+<p class="text-sm text-muted-foreground">Não tenho conta — <a href="/signup" class="font-medium text-foreground underline">criar uma</a></p>
+{{end}}

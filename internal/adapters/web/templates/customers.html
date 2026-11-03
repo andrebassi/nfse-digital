@@ -1,0 +1,34 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="page-title">Tomadores</h1>
+    <p class="page-sub">Clientes para quem você emite notas.</p>
+  </div>
+  <a href="/customers/new" class="btn btn-primary">+ Novo tomador</a>
+</div>
+<form method="get" action="/customers" class="flex max-w-md gap-2">
+  <label for="q" class="sr-only">Buscar</label>
+  <input id="q" name="q" value="{{$d.Query}}" class="input" placeholder="Buscar por nome ou documento">
+  <button type="submit" class="btn btn-outline">Buscar</button>
+</form>
+<div class="card overflow-x-auto">
+  {{if $d.Customers}}
+  <table class="table">
+    <thead><tr><th>Nome / razão social</th><th>E-mail</th><th>Município</th><th class="text-right">CPF / CNPJ</th></tr></thead>
+    <tbody>
+      {{range $d.Customers}}
+      <tr>
+        <td><a href="/customers/{{.ID}}" class="row-link font-medium">{{.Name}}</a></td>
+        <td class="text-muted-foreground">{{.Email}}</td>
+        <td class="text-muted-foreground">{{.CityName}}</td>
+        <td class="tabular text-right font-mono text-xs">{{if .Foreign}}exterior · {{.Country}}{{else}}{{doc .Document}}{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="p-8 text-center text-sm text-muted-foreground">Nenhum tomador encontrado.</p>
+  {{end}}
+</div>
+{{end}}

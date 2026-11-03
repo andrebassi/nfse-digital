@@ -1,0 +1,38 @@
+{{define "content"}}
+{{$d := .Data}}
+<div>
+  <a href="/templates" class="text-sm text-muted-foreground hover:text-foreground">← Modelos</a>
+  <h1 class="page-title mt-1">Importar de um XML</h1>
+  <p class="page-sub">Envie o XML de uma NFS-e já emitida (baixado no Portal Nacional). O emitente, o tomador e o serviço viram cadastro, e a nota entra no histórico.</p>
+</div>
+{{with $d.Error}}<div class="alert alert-destructive" role="alert">{{.}}</div>{{end}}
+{{with $d.Report}}
+<div class="card card-pad grid max-w-3xl gap-2 text-sm" role="status">
+  <p class="section-label">Resultado</p>
+  <dl class="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5">
+    <dt class="text-muted-foreground">Emitente</dt><dd>{{.Issuer}}</dd>
+    <dt class="text-muted-foreground">Tomador</dt><dd>{{.Customer}}</dd>
+    <dt class="text-muted-foreground">Modelo</dt><dd>{{.Template}}</dd>
+    <dt class="text-muted-foreground">Nota</dt><dd>{{.Invoice}}</dd>
+  </dl>
+  <div class="flex gap-2 pt-2"><a href="/templates" class="btn btn-outline btn-sm">Ver modelos</a><a href="/invoices?period=90" class="btn btn-outline btn-sm">Ver notas</a></div>
+</div>
+{{end}}
+<form method="post" action="/templates/import" enctype="multipart/form-data" class="card card-pad grid max-w-3xl gap-4">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="xml" class="label">Arquivo XML</label>
+    <input id="xml" name="xml" type="file" accept=".xml,text/xml,application/xml" class="input h-auto py-2" required>
+  </div>
+  <div class="field">
+    <label for="template_name" class="label">Nome do modelo (opcional)</label>
+    <input id="template_name" name="template_name" value="{{$d.TemplateName}}" class="input" placeholder="Ex.: Consultoria mensal">
+    <p class="hint">Vazio usa "Importado — nome do tomador". Mesmo nome atualiza o modelo existente.</p>
+  </div>
+  <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="overwrite_issuer" {{if $d.Overwrite}}checked{{end}}> Sobrescrever o emitente com os dados do XML</label>
+  <div class="flex justify-end gap-2">
+    <a href="/templates" class="btn btn-outline">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Importar</button>
+  </div>
+</form>
+{{end}}

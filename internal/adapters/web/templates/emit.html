@@ -1,0 +1,102 @@
+{{define "content"}}
+{{$hide := .Hide}}{{$d := .Data}}{{$csrf := .CSRF}}
+<div>
+  <h1 class="page-title">Emitir nota</h1>
+  <p class="page-sub">NFS-e padrão nacional. Escolha o tomador, confira o valor e emita.</p>
+</div>
+
+{{with $d.Errors.issuer}}<div class="alert alert-destructive flex items-center justify-between gap-3" role="alert"><span>{{.}}</span><a href="/settings" class="btn btn-outline btn-sm">Abrir configurações</a></div>{{end}}
+<div class="grid grid-cols-[1fr_300px] items-start gap-6 max-lg:grid-cols-1">
+  <div class="flex flex-col gap-6">
+    <section class="flex flex-col gap-3" aria-labelledby="step-customer">
+      <h2 id="step-customer" class="section-label">1 · Tomador</h2>
+      {{if $d.Customer}}
+      <div class="card card-pad flex items-center justify-between gap-3">
+        <div><p class="font-medium">{{$d.Customer.Name}}</p><p class="tabular font-mono text-xs text-muted-foreground">{{doc $d.Customer.Document}}</p></div>
+        <a href="/emit" class="btn btn-outline btn-sm">Trocar</a>
+      </div>
+      {{else}}
+      <div class="card flex flex-col gap-3 p-4">
+        <form method="get" action="/emit" class="flex gap-2">
+          <label for="q" class="sr-only">Buscar tomador</label>
+          <input id="q" name="q" value="{{$d.Query}}" class="input" placeholder="Buscar tomador por nome ou documento">
+          <button type="submit" class="btn btn-outline">Buscar</button>
+          <a href="/customers/new" class="btn btn-outline">+ Novo</a>
+        </form>
+        <ul class="divide-y divide-border rounded-md border border-border">
+          {{range $d.Customers}}
+          <li><a href="/emit?customer={{.ID}}" class="flex items-center justify-between gap-3 px-3 py-2.5 text-sm hover:bg-muted"><span class="font-medium">{{.Name}}</span><span class="tabular font-mono text-xs text-muted-foreground">{{doc .Document}}</span></a></li>
+          {{else}}
+          <li class="px-3 py-6 text-center text-sm text-muted-foreground">Nenhum tomador encontrado.</li>
+          {{end}}
+        </ul>
+      </div>
+      {{end}}
+    </section>
+
+    {{if $d.Customer}}
+    <section class="flex flex-col gap-3" aria-labelledby="step-service">
+      <h2 id="step-service" class="section-label">2 · Serviço e valor</h2>
+      <form method="post" action="/emit" class="card card-pad grid gap-4">
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <input type="hidden" name="customer_id" value="{{$d.Customer.ID}}">
+        <div class="field">
+          <label for="template_id" class="label">Modelo de serviço</label>
+          <div class="flex gap-2">
+            <select id="template_id" name="template_id" class="input">
+              <option value="">Escolha um modelo</option>
+              {{range $d.Templates}}<option value="{{.ID}}" {{if eq .ID $d.TemplateID}}selected{{end}}>{{.Name}}</option>{{end}}
+            </select>
+            <button type="submit" name="action" value="load-template" class="btn btn-outline">Usar modelo</button>
+          </div>
+          {{with $d.Template}}<p class="hint">{{service .NationalTaxCode}} ({{serviceCode .NationalTaxCode}})</p>{{end}}
+          {{with $d.Errors.template_id}}<p class="field-error">{{.}}</p>{{end}}
+        </div>
+        <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+          <div class="field">
+            <label for="amount" class="label">Valor (R$)</label>
+            <input id="amount" name="amount" value="{{$d.Amount}}" class="input tabular" inputmode="decimal" placeholder="19.000,00">
+            {{with $d.Errors.amount}}<p class="field-error">{{.}}</p>{{end}}
+          </div>
+          <div class="field">
+            <label for="competence" class="label">Competência</label>
+            <input id="competence" name="competence" type="date" value="{{$d.Competence}}" class="input tabular">
+            {{with $d.Errors.competence}}<p class="field-error">{{.}}</p>{{end}}
+          </div>
+        </div>
+        <div class="field">
+          <label for="description" class="label">Descrição do serviço</label>
+          <textarea id="description" name="description" class="input textarea">{{$d.Description}}</textarea>
+          {{with $d.Errors.description}}<p class="field-error">{{.}}</p>{{end}}
+        </div>
+        {{if $d.Production}}
+        <div class="field">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="confirm_production" value="yes">
+            Confirmo a emissão em <strong>produção</strong>: a nota terá valor fiscal.
+          </label>
+          {{with $d.Errors.confirm_production}}<p class="field-error">{{.}}</p>{{end}}
+        </div>
+        {{end}}
+        <div class="flex justify-end">
+          <button type="submit" name="action" value="emit" class="btn btn-primary">Emitir nota</button>
+        </div>
+      </form>
+    </section>
+    {{end}}
+  </div>
+
+  <aside class="card card-pad flex flex-col gap-3" aria-label="Resumo">
+    <p class="section-label">Resumo</p>
+    <dl class="grid gap-2 text-sm">
+      <div class="flex justify-between gap-2"><dt class="text-muted-foreground">Tomador</dt><dd class="text-right">{{if $d.Customer}}{{$d.Customer.Name}}{{else}}—{{end}}</dd></div>
+      <div class="flex justify-between gap-2"><dt class="text-muted-foreground">Modelo</dt><dd class="text-right">{{if $d.Template}}{{$d.Template.Name}}{{else}}—{{end}}</dd></div>
+      <div class="flex justify-between gap-2"><dt class="text-muted-foreground">Competência</dt><dd class="tabular">{{brDate $d.Competence}}</dd></div>
+    </dl>
+    <div class="border-t border-border pt-3">
+      <p class="section-label">Total</p>
+      <p class="tabular text-2xl font-semibold">{{if $hide}}R$ ••••••{{else if $d.Amount}}R$ {{$d.Amount}}{{else}}R$ 0,00{{end}}</p>
+    </div>
+  </aside>
+</div>
+{{end}}

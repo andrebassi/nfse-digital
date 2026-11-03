@@ -1,0 +1,13 @@
+# Binário compilado na raiz por `go build ./cmd/nfse` (27 MB): artefato, não fonte.
+/nfse
+# Cache de checksums do Task (sources/generates): local de cada máquina.
+.task/
+# O .gitignore do repo labs ignora *.png; o diagrama do README precisa subir.
+!docs/diagram/*.png
+!docs/diagram/icons/*.png
+# Compilado por `task build`.
+/bin/
+# Material de referência com dados reais (prints de outros sistemas, NFS-e de
+# clientes, mockups com nomes reais): fica na máquina do dono, nunca no repo
+# público.
+/docs/reference/

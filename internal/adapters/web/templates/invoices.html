@@ -1,0 +1,138 @@
+{{define "content"}}
+{{$hide := .Hide}}{{$d := .Data}}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="page-title">Notas</h1>
+    <p class="page-sub">{{$d.Summary.Authorized}} autorizada(s) nos últimos {{$d.Period}} dias · {{brl $hide $d.Summary.Revenue}}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <form method="get" action="/invoices" class="flex items-center gap-2">
+      {{if $d.Status}}<input type="hidden" name="status" value="{{$d.Status}}">{{end}}
+      <label for="period" class="sr-only">Período</label>
+      <select id="period" name="period" class="input w-40">
+        {{range $d.Periods}}<option value="{{.}}" {{if eq . $d.Period}}selected{{end}}>Últimos {{.}} dias</option>{{end}}
+      </select>
+      <button type="submit" class="btn btn-outline">Filtrar</button>
+    </form>
+    {{if $.Portal}}<form method="post" action="/sync"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="btn btn-outline">Sincronizar com a SEFIN</button></form>{{end}}
+    <a href="/emit" class="btn btn-primary">Emitir nota</a>
+  </div>
+</div>
+
+<div class="grid grid-cols-4 gap-4 max-lg:grid-cols-2">
+  <div class="card card-pad"><p class="text-sm font-medium text-muted-foreground">Receita</p><p class="tabular mt-1 text-2xl font-semibold">{{brl $hide $d.Summary.Revenue}}</p></div>
+  <div class="card card-pad"><p class="text-sm font-medium text-muted-foreground">Autorizadas</p><p class="tabular mt-1 text-2xl font-semibold">{{$d.Summary.Authorized}}</p></div>
+  <div class="card card-pad"><p class="text-sm font-medium text-muted-foreground">Canceladas</p><p class="tabular mt-1 text-2xl font-semibold">{{$d.Summary.Cancelled}}</p></div>
+  <div class="card card-pad"><p class="text-sm font-medium text-muted-foreground">Ticket médio</p><p class="tabular mt-1 text-2xl font-semibold">{{brl $hide $d.Summary.AverageTicket}}</p></div>
+</div>
+
+<nav class="tabs w-fit" aria-label="Filtrar por estado">
+  {{range $d.Tabs}}<a href="{{.URL}}" class="tab {{if .Active}}tab-active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}} <span class="tabular text-xs text-muted-foreground">{{.Count}}</span></a>{{end}}
+</nav>
+
+<div class="grid gap-4 {{if $d.Selected}}grid-cols-[1fr_380px] max-xl:grid-cols-1{{end}}">
+  <div class="card overflow-x-auto">
+    {{if $d.Rows}}
+    <table class="table">
+      <thead><tr><th>Nº</th><th>Tomador</th><th>Emissão</th><th class="text-right">Valor</th><th>Estado</th></tr></thead>
+      <tbody>
+        {{range $d.Rows}}
+        <tr>
+          <td class="tabular font-mono text-xs"><a class="row-link" href="/invoices?period={{$d.Period}}{{if $d.Status}}&amp;status={{$d.Status}}{{end}}&amp;id={{.ID}}">{{if .NFSeNumber}}{{.NFSeNumber}}{{else}}—{{end}}</a></td>
+          <td><a class="row-link" href="/invoices?period={{$d.Period}}{{if $d.Status}}&amp;status={{$d.Status}}{{end}}&amp;id={{.ID}}"><span class="font-medium">{{.Customer.Name}}</span><span class="tabular block font-mono text-xs text-muted-foreground">{{doc .Customer.Document}}</span></a></td>
+          <td class="tabular">{{date .IssuedAt}}</td>
+          <td class="tabular whitespace-nowrap text-right">{{brl $hide .Amount}}</td>
+          <td><span class="{{badge .Status}}">{{.Status.Label}}</span></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="p-8 text-center text-sm text-muted-foreground">Nenhuma nota neste filtro.</p>
+    {{end}}
+  </div>
+
+  {{with $d.Selected}}
+  <aside class="card card-pad flex flex-col gap-4" aria-label="Detalhe da nota">
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <p class="section-label">NFS-e</p>
+        <h2 class="text-lg font-semibold">{{if .NFSeNumber}}Nº {{.NFSeNumber}}{{else}}Sem número{{end}}</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="{{badge .Status}}">{{.Status.Label}}</span>
+        <a href="/invoices?period={{$d.Period}}{{if $d.Status}}&amp;status={{$d.Status}}{{end}}" class="btn btn-ghost btn-sm" aria-label="Fechar detalhe">✕</a>
+      </div>
+    </div>
+    <p class="tabular text-3xl font-semibold">{{brl $hide .Amount}}</p>
+    <dl class="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2.5 text-sm">
+      <dt class="section-label pt-0.5">Tomador</dt><dd>{{.Customer.Name}}<span class="tabular block font-mono text-xs text-muted-foreground">{{doc .Customer.Document}}</span></dd>
+      <dt class="section-label pt-0.5">Competência</dt><dd class="tabular">{{date .Competence}}</dd>
+      <dt class="section-label pt-0.5">Emissão</dt><dd class="tabular">{{datetime .IssuedAt}}</dd>
+      <dt class="section-label pt-0.5">Série / DPS</dt><dd class="tabular font-mono">{{.Series}} / {{if .DPSNumber}}{{.DPSNumber}}{{else}}—{{end}}</dd>
+      <dt class="section-label pt-0.5">Serviço</dt><dd>{{service .ServiceCode}}<span class="block font-mono text-xs text-muted-foreground">{{serviceCode .ServiceCode}}</span></dd>
+      <dt class="section-label pt-0.5">Ambiente</dt><dd>{{.Environment.Label}}{{if .Simulated}} <span class="badge">simulada</span>{{end}}</dd>
+      {{if .AccessKey}}<dt class="section-label pt-0.5">Chave</dt><dd class="font-mono text-xs break-all">{{.AccessKey}}</dd>{{end}}
+    </dl>
+    <p class="rounded-md bg-muted p-3 text-sm">{{.Description}}</p>
+    {{if and $d.DANFSe .AccessKey (or (eq .Status "authorized") (eq .Status "cancelled"))}}
+    <a href="/invoices/{{.ID}}/danfse" class="btn btn-outline btn-sm self-start">Baixar DANFSe (PDF)</a>
+    {{end}}
+    {{if and $d.Email (eq .Status "authorized")}}
+    <form method="post" action="/invoices/{{.ID}}/email" class="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <button type="submit" class="btn btn-outline btn-sm">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        Enviar por e-mail
+      </button>
+      <a href="/customers/{{.CustomerID}}/email" class="text-xs text-muted-foreground underline">configurar envio do tomador</a>
+    </form>
+    {{end}}
+    {{with $d.Emails}}
+    <div class="grid gap-1.5">
+      <p class="section-label">Envios por e-mail</p>
+      <ul class="grid gap-1 text-sm">
+        {{range .}}<li class="flex flex-wrap gap-x-2">{{if .Error}}<span class="text-destructive">Falhou</span>{{else}}<span>Enviada</span>{{end}} <span class="tabular text-muted-foreground">{{datetime .SentAt}}</span> <span class="text-muted-foreground">{{if .Automatic}}automático{{else}}manual{{end}} · {{.To}}</span>{{with .Error}}<span class="block w-full text-xs text-destructive">{{.}}</span>{{end}}</li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+    {{/* Cancelar fica fechado num <details>: o evento é irreversível e não pode estar a um clique. */}}
+    {{if and $d.Cancel .AccessKey (eq .Status "authorized")}}
+    <details class="rounded-md border border-border p-3">
+      <summary class="cursor-pointer text-sm font-medium text-destructive">Cancelar nota</summary>
+      <form method="post" action="/invoices/{{.ID}}/cancel" class="mt-3 grid gap-3">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <div class="field">
+          <label for="cancel_reason" class="label">Motivo</label>
+          <select id="cancel_reason" name="reason" class="input">
+            <option value="erro_emissao">Erro na emissão</option>
+            <option value="servico_nao_prestado">Serviço não prestado</option>
+            <option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cancel_description" class="label">Justificativa</label>
+          <textarea id="cancel_description" name="description" class="input min-h-20" minlength="15" maxlength="255" required placeholder="De 15 a 255 caracteres, vai para a SEFIN"></textarea>
+        </div>
+        {{if eq .Environment "production"}}
+        {{/* O texto vai num span só: solto no flex, o <strong> virava um item à parte e a frase quebrava em três. */}}
+        <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="confirm_production" value="yes" class="mt-0.5"><span>Confirmo o cancelamento em <strong>produção</strong>: não tem volta.</span></label>
+        {{end}}
+        {{/* justify-self: no grid o item estica na largura; o botão fica do tamanho do texto. */}}
+        <button type="submit" class="btn btn-destructive btn-sm justify-self-start">Cancelar na SEFIN</button>
+      </form>
+    </details>
+    {{end}}
+    {{if .ErrorCode}}
+    <div class="alert alert-destructive flex flex-col gap-1.5">
+      <p class="text-xs font-semibold uppercase tracking-wider">Retorno da SEFIN · {{.ErrorCode}}</p>
+      <p class="font-medium">{{translate .ErrorCode .ErrorMessage}}</p>
+      <p class="text-xs opacity-80">Mensagem original: {{.ErrorMessage}}</p>
+    </div>
+    {{else if .ErrorMessage}}
+    <div class="alert alert-warning"><p class="text-xs font-semibold uppercase tracking-wider">Sem resposta da SEFIN</p><p>{{.ErrorMessage}}</p></div>
+    {{end}}
+  </aside>
+  {{end}}
+</div>
+{{end}}

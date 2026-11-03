@@ -1,0 +1,13 @@
+{{define "content"}}
+{{/* Página da importação do portal: destino depois do certificado (abre
+    já importando) e a versão sem JavaScript do botão de Modelos. Com
+    resultado em .Data mostra o cartão final; sem, o cartão "consultando". */}}
+<div>
+  <h1 class="page-title">Importar notas do Portal Nacional</h1>
+  <p class="page-sub">Consulta às NFS-e já emitidas pela empresa para criar ou atualizar os modelos de serviço.</p>
+</div>
+<div class="max-w-3xl" {{if not .Data}}data-portal-autostart{{end}}>
+  {{if .Data}}{{template "portal_result" .Data}}{{else}}{{template "portal_running" .CSRF}}{{end}}
+</div>
+<script src="/static/portal.js" defer></script>
+{{end}}

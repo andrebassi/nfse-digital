@@ -1,0 +1,57 @@
+{{define "content"}}
+{{$hide := .Hide}}{{$d := .Data}}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="page-title">Modelos de serviço</h1>
+    <p class="page-sub">O serviço que você presta e como ele é tributado. A descrição vem preenchida na hora de emitir.</p>
+  </div>
+  <a href="/templates/new" class="btn btn-primary">+ Novo modelo</a>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-2">
+  <form method="get" action="/templates" class="flex w-full max-w-md gap-2">
+    <label for="q" class="sr-only">Buscar</label>
+    <input id="q" name="q" value="{{$d.Query}}" class="input" placeholder="Buscar por nome, tomador ou serviço">
+    <button type="submit" class="btn btn-outline">Buscar</button>
+  </form>
+  <div class="flex gap-2">
+    {{if .Portal}}<a href="/portal" class="btn btn-outline" data-portal-open>Importar do Portal Nacional</a>{{end}}
+    <a href="/templates/import" class="btn btn-outline">Importar de um XML</a>
+  </div>
+</div>
+<div class="card overflow-x-auto">
+  {{if $d.Templates}}
+  <table class="table">
+    <thead><tr><th>Modelo</th><th>Tomador</th><th>Serviço</th><th class="text-right">Valor padrão</th></tr></thead>
+    <tbody>
+      {{range $d.Templates}}
+      <tr>
+        <td><a href="/templates/{{.ID}}" class="row-link font-medium">{{.Name}}</a></td>
+        <td>{{if .Customer.Name}}{{.Customer.Name}}{{else}}<span class="text-muted-foreground">—</span>{{end}}</td>
+        <td><span class="line-clamp-1 text-muted-foreground" title="{{service .NationalTaxCode}}">{{service .NationalTaxCode}}</span><span class="font-mono text-xs text-muted-foreground">{{serviceCode .NationalTaxCode}}</span></td>
+        <td class="tabular whitespace-nowrap text-right">{{brl $hide .DefaultAmount}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="p-8 text-center text-sm text-muted-foreground">Nenhum modelo encontrado.</p>
+  {{end}}
+</div>
+{{if .Portal}}
+{{/* Janela da importação: o portal.js abre e dispara ao clicar no botão;
+    sem JavaScript, o botão leva para /portal. */}}
+<dialog class="import-dialog" data-portal-dialog aria-labelledby="portal-dialog-title">
+  <div class="import-head">
+    <div>
+      <h2 id="portal-dialog-title" class="text-xl font-semibold tracking-tight">Importar notas do Portal Nacional</h2>
+      <p class="page-sub">Consulta às NFS-e já emitidas pela empresa para criar ou atualizar os modelos de serviço.</p>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" data-portal-close aria-label="Fechar">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div data-portal-body>{{template "portal_running" .CSRF}}</div>
+</dialog>
+<script src="/static/portal.js" defer></script>
+{{end}}
+{{end}}

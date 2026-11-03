@@ -1,0 +1,84 @@
+{{define "content"}}
+{{$d := .Data}}
+<div>
+  <a href="/schedules" class="text-sm text-muted-foreground hover:text-foreground">← Agendamentos</a>
+  <h1 class="page-title mt-1">Novo agendamento</h1>
+</div>
+<div class="grid grid-cols-[1fr_300px] items-start gap-6 max-lg:grid-cols-1">
+  <form method="post" action="/schedules" class="card card-pad grid gap-4">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="field">
+      <label for="template_id" class="label">Modelo de serviço</label>
+      <select id="template_id" name="template_id" class="input">
+        <option value="">Escolha o serviço</option>
+        {{range $d.Templates}}<option value="{{.ID}}" {{if eq .ID $d.Form.TemplateID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      {{with $d.Errors.template_id}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="field">
+      <label for="customer_id" class="label">Tomador</label>
+      <select id="customer_id" name="customer_id" class="input">
+        <option value="">Escolha o tomador</option>
+        {{range $d.Customers}}<option value="{{.ID}}" {{if eq .ID $d.Form.CustomerID}}selected{{end}}>{{.Name}} · {{doc .Document}}</option>{{end}}
+      </select>
+      {{with $d.Errors.customer_id}}<p class="field-error">{{.}}</p>{{end}}
+    </div>
+    <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+      <div class="field">
+        <label for="amount" class="label">Valor padrão (R$)</label>
+        <input id="amount" name="amount" value="{{$d.Amount}}" class="input tabular" inputmode="decimal">
+        {{with $d.Errors.amount}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+      <div class="field">
+        <label for="day" class="label">Dia da emissão</label>
+        <select id="day" name="day" class="input">
+          {{range $d.Days}}<option value="{{.}}" {{if eq . $d.Form.Day}}selected{{end}}>Todo dia {{.}}</option>{{end}}
+        </select>
+        <p class="hint">Dia 29 a 31 cai no último dia em mês mais curto.</p>
+        {{with $d.Errors.day}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+    </div>
+    <fieldset class="grid gap-2">
+      <legend class="label mb-2">Competência</legend>
+      <label class="card flex cursor-pointer gap-3 p-3 has-checked:border-primary has-checked:bg-muted">
+        <input type="radio" name="competence" value="previous-month" {{if eq $d.Form.Competence "previous-month"}}checked{{end}}>
+        <span><span class="block text-sm font-medium">Mês anterior</span><span class="hint">A nota se refere ao serviço prestado no mês anterior.</span></span>
+      </label>
+      <label class="card flex cursor-pointer gap-3 p-3 has-checked:border-primary has-checked:bg-muted">
+        <input type="radio" name="competence" value="emission" {{if eq $d.Form.Competence "emission"}}checked{{end}}>
+        <span><span class="block text-sm font-medium">Data da emissão</span><span class="hint">O serviço do mês é concluído no dia da emissão.</span></span>
+      </label>
+      {{with $d.Errors.competence}}<p class="field-error">{{.}}</p>{{end}}
+    </fieldset>
+    <div class="field">
+      <label for="description" class="label">Descrição</label>
+      <textarea id="description" name="description" class="input textarea">{{$d.Form.Description}}</textarea>
+      <p class="hint">Variáveis: <code class="kbd">{mes}</code> <code class="kbd">{ano}</code> <code class="kbd">{competencia}</code></p>
+      {{with $d.Example}}<p class="hint">Exemplo na próxima emissão: {{.}}</p>{{end}}
+    </div>
+    <div class="grid gap-3 border-t border-border pt-4">
+      <label class="flex gap-3 text-sm"><input type="checkbox" name="notify_eve" {{if $d.Form.NotifyEve}}checked{{end}}><span><span class="block font-medium">Aviso na véspera, às 9h</span><span class="hint">Para confirmar, alterar o valor ou pular o mês. Sem resposta, emite com o valor vigente.</span></span></label>
+      <label class="flex gap-3 text-sm"><input type="checkbox" name="send_to_customer" {{if $d.Form.SendToCustomer}}checked{{end}}><span><span class="block font-medium">Enviar a nota ao tomador após a emissão</span><span class="hint">DANFSe e XML pelo Gmail e com o texto configurados em Tomadores → Envio por e-mail. Se o tomador já tem o envio automático ligado, sai um e-mail só.</span></span></label>
+    </div>
+    <div class="flex justify-end gap-2">
+      <a href="/schedules" class="btn btn-outline">Cancelar</a>
+      <button type="submit" name="action" value="preview" class="btn btn-outline">Pré-visualizar</button>
+      <button type="submit" name="action" value="save" class="btn btn-primary">Salvar agendamento</button>
+    </div>
+  </form>
+
+  <aside class="card card-pad flex flex-col gap-3" aria-label="Próximas emissões">
+    <p class="section-label">Próximas emissões</p>
+    {{range $d.Runs}}
+    <div class="border-l-2 border-primary pl-3">
+      <p class="tabular text-sm font-medium">{{datetime .EmitAt}}</p>
+      <p class="tabular hint">Aviso em {{datetime .NotifyAt}}</p>
+      <p class="tabular hint">Competência {{monthYear .Competence}}</p>
+    </div>
+    {{else}}
+    <p class="hint">Escolha um dia para ver as datas.</p>
+    {{end}}
+    <p class="hint border-t border-border pt-3">Emissão às 03:00, horário de Brasília. Se a SEFIN estiver fora, novas tentativas a cada hora até o fim do dia.</p>
+  </aside>
+</div>
+{{end}}

@@ -1,0 +1,82 @@
+{
+  "go": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/golang.svg",
+    "file": "go.svg",
+    "bytes": 1472,
+    "dark_file": "go_dark.svg"
+  },
+  "flyio": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/fly.svg",
+    "file": "flyio.svg",
+    "bytes": 6660
+  },
+  "turso": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/turso-light.svg",
+    "file": "turso.svg",
+    "bytes": 895,
+    "dark_file": "turso_dark.svg"
+  },
+  "cloudflare": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/cloudflare.svg",
+    "file": "cloudflare.svg",
+    "bytes": 1473
+  },
+  "claude": {
+    "source": "svgl",
+    "url": "https://svgl.app/library/claude-ai-icon.svg",
+    "file": "claude.svg",
+    "bytes": 1999
+  },
+  "nix": {
+    "source": "devicon",
+    "url": "https://raw.githubusercontent.com/devicons/devicon/master/icons/nixos/nixos-original.svg",
+    "file": "nix.svg",
+    "bytes": 934
+  },
+  "pass": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg",
+    "file": "pass.svg",
+    "bytes": 530
+  },
+  "sefin": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/landmark.svg",
+    "file": "sefin.svg",
+    "bytes": 508
+  },
+  "vault": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/lock-keyhole.svg",
+    "file": "vault.svg",
+    "bytes": 417
+  },
+  "cron": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/clock.svg",
+    "file": "cron.svg",
+    "bytes": 344
+  },
+  "agent": {
+    "source": "lucide",
+    "url": "https://cdn.jsdelivr.net/npm/lucide-static/icons/bot.svg",
+    "file": "agent.svg",
+    "bytes": 451
+  },
+  "task": {
+    "source": "explicit",
+    "url": "https://taskfile.dev/img/logo.svg",
+    "file": "task.svg",
+    "bytes": 435
+  },
+  "ntfy": {
+    "source": "explicit",
+    "url": "https://raw.githubusercontent.com/binwiederhier/ntfy/main/web/public/static/images/ntfy.png",
+    "file": "ntfy.png",
+    "bytes": 6633
+  }
+}

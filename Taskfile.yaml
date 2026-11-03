@@ -1,0 +1,111 @@
+# Tarefas do nfse-digital, emissor pessoal de NFS-e (binário nfse).
+version: "3"
+
+vars:
+  CSS_IN: internal/adapters/web/styles/input.css
+  CSS_OUT: internal/adapters/web/static/app.css
+
+tasks:
+  cert:import:
+    desc: Importa o certificado A1 (.pfx) para o pass — task cert:import -- "<caminho>"
+    cmds:
+      - ./scripts/import-cert.sh {{.CLI_ARGS}}
+
+  css:
+    desc: Gera o CSS do painel com o Tailwind v4 standalone (visual shadcn)
+    sources: ["{{.CSS_IN}}", "internal/adapters/web/templates/*.html"]
+    generates: ["{{.CSS_OUT}}"]
+    # nix shell em vez de depender do devShell: o flake mora num subdiretório
+    # do repo labs e, sem git add, o `nix develop` não enxerga o flake.nix.
+    cmds:
+      # Sem Nix, usa o tailwindcss v4 standalone que estiver no PATH.
+      - if command -v nix >/dev/null; then nix shell nixpkgs#tailwindcss_4 --command tailwindcss -i {{.CSS_IN}} -o {{.CSS_OUT}} --minify; else tailwindcss -i {{.CSS_IN}} -o {{.CSS_OUT}} --minify; fi
+
+  test:
+    desc: Roda todos os testes
+    deps: [css]
+    cmds:
+      - go test -count=1 ./...
+
+  test:cov:
+    desc: Gate de cobertura — domain 100%, resto 90%; COVERAGE_FLOOR=101 prova que reprova
+    deps: [css]
+    cmds:
+      - ./scripts/coverage-gate.sh
+
+  test:turso:
+    desc: Exclusão de conta contra o Turso REAL (conta descartável; token do pass, aprovação no celular)
+    cmds:
+      - set -o pipefail; PATH="$HOME/.local/bin:/usr/bin:/bin:$PATH" TURSO_AUTH_TOKEN="$(pass show bassi/turso/nfse-auth-token)" NFSE_TURSO_LIVE_URL="$(pass show bassi/turso/nfse-url)" go test -count=1 -v -run TestDeleteAccountLive ./internal/adapters/turso/ 2>&1 | tee /tmp/nfse-test-turso.log
+
+  build:
+    desc: Compila bin/nfse
+    deps: [css]
+    cmds:
+      - go build -o bin/nfse ./cmd/nfse
+
+  e2e:
+    desc: Ponta a ponta no SQLite — cria conta e emitente, emite, reinicia e confere que nada se perdeu
+    deps: [build]
+    cmds:
+      - ./scripts/e2e-sqlite.sh
+
+  api:smoke:
+    desc: Smoke da API REST no binário real (banco temporário, porta 8798, sem falar com a SEFIN) — KEEP=1 deixa no ar
+    deps: [build]
+    cmds:
+      - set -o pipefail; ./scripts/api-smoke.sh 2>&1 | tee /tmp/nfse-api-smoke.log
+
+  email:smoke:
+    desc: Smoke do envio por e-mail no binário real contra o Mailpit (sem Gmail, banco temporário, porta 8797) — KEEP=1 deixa no ar
+    deps: [build]
+    cmds:
+      - set -o pipefail; ./scripts/email-smoke.sh 2>&1 | tee /tmp/nfse-email-smoke.log
+
+  xsd:check:
+    desc: Valida a DPS de referência no XSD oficial (cópia sem âncoras, ver schemas/README.md)
+    cmds:
+      - nix shell nixpkgs#libxml2 --command xmllint --noout --schema schemas/v1.01-xmllint/DPS_v1.01.xsd testdata/dps-reference.xml
+
+  cert:check:
+    desc: Lê o certificado A1 do pass (aprovação no celular ou YubiKey) e mostra titular e validade
+    deps: [build]
+    cmds:
+      - PATH="$HOME/.local/bin:/usr/bin:/bin:$PATH" ./bin/nfse cert check
+
+  smoke:homologation:
+    desc: Emite R$ 1,00 na homologação da SEFIN com o A1 real (NFSE_SMOKE_TAKER=<CNPJ do tomador>)
+    deps: [build]
+    cmds:
+      - ./scripts/smoke-homologation.sh
+
+  deploy:
+    desc: Publica no Fly (nfse.bassi.engineer, 1 máquina em gru que dorme, banco no Turso, sem volume)
+    cmds:
+      - set -o pipefail; ./scripts/fly-deploy.sh 2>&1 | tee /tmp/nfse-fly-deploy.log
+
+  dns:
+    desc: CNAME nfse.bassi.engineer → nfse-digital.fly.dev no Cloudflare (sem proxy, o TLS é do Fly)
+    cmds:
+      - set -o pipefail; ./scripts/cloudflare-dns.sh 2>&1 | tee /tmp/nfse-dns.log
+
+  nfse:xml:
+    desc: Baixa o XML de uma NFS-e da SEFIN pela chave — task nfse:xml -- <chave> [--production] [saída.xml]
+    cmds:
+      - set -o pipefail; ./scripts/fetch-nfse-xml.sh {{.CLI_ARGS}} 2>&1 | tee /tmp/nfse-xml.log
+
+  cancel:
+    desc: Cancela na SEFIN uma nota do painel publicado (Turso) — task cancel -- <id> [--production] [motivo] [justificativa]
+    cmds:
+      - set -o pipefail; ./scripts/cancel-invoice.sh {{.CLI_ARGS}} 2>&1 | tee /tmp/nfse-cancel.log
+
+  diagram:
+    desc: Regenera docs/diagram (HTML autocontido + PNG claro e escuro) a partir de nfse-stack.src.html
+    cmds:
+      - set -o pipefail; ./scripts/render-diagram.sh 2>&1 | tee /tmp/nfse-diagram.log
+
+  serve:
+    desc: Sobe o painel em http://127.0.0.1:8735 (banco SQLite local e emissor real da SEFIN)
+    deps: [build]
+    cmds:
+      - ./bin/nfse serve {{.CLI_ARGS}}
