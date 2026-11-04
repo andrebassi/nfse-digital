@@ -10,3 +10,10 @@ testdata/
 *.p12
 .env*
 cover.out
+
+# O binário só compila cmd/ e internal/: o site (node_modules e build do
+# Next passam de 1 GB) e os SDKs (módulos próprios) nunca entram no contexto.
+site/
+sdk/
+.task/
+.git/

@@ -93,6 +93,11 @@ tasks:
     cmds:
       - set -o pipefail; ./scripts/docs-site.sh deploy 2>&1 | tee /tmp/nfse-docs-deploy.log
 
+  zero-trust:
+    desc: Cloudflare Access em /login e /signup de nfse.bassi.engineer (API, MCP e doc seguem no bearer); só andrebassi@gmail.com entra
+    cmds:
+      - set -o pipefail; ./scripts/zero-trust.sh 2>&1 | tee /tmp/nfse-zero-trust.log
+
   xsd:check:
     desc: Valida a DPS de referência no XSD oficial (cópia sem âncoras, ver schemas/README.md)
     cmds:
