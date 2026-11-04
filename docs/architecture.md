@@ -163,6 +163,65 @@ sequenceDiagram
   end
 ```
 
+### Conferir antes de emitir (preview)
+
+Nota fiscal autorizada não se desfaz: só se cancela, e o cancelamento fica no histórico do
+documento, exige justificativa e tem prazo. O custo de errar competência, valor ou descrição é
+pago depois da emissão, com o cliente no meio. `preview_invoice` move a conferência para antes.
+
+```mermaid
+sequenceDiagram
+  participant U as MCP (agente)
+  participant P as app.Preview
+  participant E as app.Emit
+  participant V as app.resolve
+  participant R as Banco
+  participant S as SEFIN
+  U->>P: template, customer, amount, competence, description
+  P->>V: resolve
+  V->>R: lê emitente, tomador, modelo (somente leitura)
+  V-->>P: Resolved (validado)
+  P-->>U: espelho — nenhuma escrita, nenhum número reservado
+  Note over U: o dono confere e aprova
+  U->>E: emit_invoice (mesmos campos + idempotency_key)
+  E->>V: resolve (o MESMO)
+  E->>R: reserva número (tx) e grava pending
+  E->>S: assina e transmite
+```
+
+**A decisão central é o `resolve` compartilhado.** Um espelho montado por outro caminho
+que não o da emissão pode divergir dela — e um espelho que mente é pior que nenhum, porque
+transfere confiança para o lugar errado. Por isso a leitura e a validação de emitente, tomador,
+modelo, valor, competência e descrição saíram de dentro de `Emit` para `resolve`, e `Preview` é
+uma chamada fina sobre ele.
+
+O que `Preview` **não** faz, e é o ponto:
+
+| Não faz | Por quê |
+|---|---|
+| `ReserveDPSNumber` | numeração da DPS é sequencial e auditável; espelho que gasta número deixa buraco |
+| `SaveInvoice` | nenhuma linha no banco — o espelho não é rascunho, não existe depois da chamada |
+| assinar com o A1 | não toca o certificado |
+| `Emitter.Emit` | nada sai para a SEFIN |
+| `EnsureEnvironment` | a guarda de produção fica só em `Emit`: exigir `confirm_production` para **ver** o espelho inverteria o propósito, que é decidir se confirma |
+
+`PreviewInput` por isso não tem `idempotency_key` nem `confirm_production`: não há idempotência
+a garantir nem produção a confirmar em algo que não cria nota.
+
+**`service_month` é derivado, não informado.** A nota do serviço do mês M é emitida no começo de
+M+1 com competência M+1; o mês do serviço é `competence - 1 mês`. O espelho entrega esse cálculo
+pronto (`competence.AddDate(0,-1,0)`) porque é a confusão mais cara do domínio: ela decide o
+texto da descrição, o nome do arquivo arquivado, a pasta e o assunto do e-mail.
+
+**Garantia por teste** (`TestPreviewInvoiceTool`): conta as notas e lê `NextDPSNumber` antes e
+depois da chamada, e exige que os dois fiquem iguais. Com uma emissão plantada dentro do
+handler, o teste acusa `o espelho criou nota: 5 antes, 6 depois`; com `service_month` trocado
+pelo mês da competência, acusa `mês do serviço: "11/2026", esperado 10/2026`.
+
+**Limites.** O espelho valida o que é local — cadastro, formato, valor, data. Ele **não**
+pergunta nada à SEFIN, então não antecipa rejeição de lá (E0116 por competência retroativa,
+E0712 por regime, E0015 por data futura). Para isso só a emissão responde.
+
 ### Agendamento
 
 `nfse serve` verifica a cada minuto; um agendamento roda quando `day >= DayOfMonth` e `LastRunPeriod != período atual`. O período é gravado na mesma transação que reserva o número, então reiniciar o processo não emite duas vezes.

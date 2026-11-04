@@ -31,9 +31,10 @@ var Tools = []ToolInfo{
 	{Name: "list_templates", Description: "Lista os modelos de serviço (código de tributação, valor e descrição padrão)."},
 	{Name: "list_invoices", Description: "Lista as notas, da mais recente para a mais antiga."},
 	{Name: "show_invoice", Description: "Mostra uma nota pelo ID, com status, chave de acesso e o erro da SEFIN traduzido."},
+	{Name: "preview_invoice", Description: "Espelho da nota ANTES de emitir: mostra ambiente, tomador, modelo, competência, valor e a descrição integral, sem reservar número, gravar ou transmitir. Mostre ao dono e só chame emit_invoice depois do sim dele."},
 	{Name: "emit_invoice", Writes: true, Description: "Emite uma NFS-e. Antes de chamar, mostre ao usuário o resumo (tomador, modelo, valor, competência) e espere a confirmação. Repetir a mesma idempotency_key devolve a nota já criada. Resposta pendente: consulte com show_invoice antes de pensar em emitir de novo."},
 	{Name: "cancel_invoice", Writes: true, Description: "Cancela uma NFS-e autorizada na SEFIN. Irreversível: confirme com o usuário antes."},
-	{Name: "download_danfse", Description: "Gera o PDF do DANFSe de uma nota autorizada ou cancelada e devolve o caminho do arquivo."},
+	{Name: "download_danfse", Description: "Gera o DANFSe de uma nota autorizada ou cancelada e devolve o PDF e o XML autorizado, ambos em base64, com o nome de cada arquivo."},
 	{Name: "list_schedules", Description: "Lista os agendamentos mensais com as próximas emissões."},
 }
 

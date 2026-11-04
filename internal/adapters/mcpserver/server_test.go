@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -119,7 +120,7 @@ func TestListingTools(t *testing.T) {
 	_ = repo.SaveSchedule(context.Background(), &schedule)
 	cs := session(t, deps)
 	tools, err := cs.ListTools(context.Background(), nil)
-	if err != nil || len(tools.Tools) != 9 {
+	if err != nil || len(tools.Tools) != 10 {
 		t.Fatalf("ferramentas: %v", err)
 	}
 	var status AccountStatus
@@ -245,6 +246,76 @@ func TestEmitTool(t *testing.T) {
 	}
 }
 
+// TestPreviewInvoiceTool: o espelho mostra a nota inteira e NÃO deixa rastro —
+// nenhuma nota criada e o número da DPS intacto. É o ponto da ferramenta: o
+// dono confere antes de existir documento fiscal, que só se desfaz cancelando.
+func TestPreviewInvoiceTool(t *testing.T) {
+	deps, repo := fixture(t, &stubEmitter{})
+	ctx := context.Background()
+	cs := session(t, deps)
+
+	before, err := repo.Issuer(ctx)
+	if err != nil {
+		t.Fatalf("emitente: %v", err)
+	}
+	antes, err := repo.Invoices(ctx)
+	if err != nil {
+		t.Fatalf("listar notas: %v", err)
+	}
+
+	templates, err := repo.Templates(ctx, "")
+	if err != nil || len(templates) == 0 {
+		t.Fatalf("modelos: %v", err)
+	}
+	args := map[string]any{
+		"customer_id": templates[0].CustomerID, "template_id": templates[0].ID,
+		"amount": "19.000,00", "competence": "2026-11-04",
+	}
+	var preview PreviewOut
+	if isErr, text := call(t, cs, "preview_invoice", args, &preview); isErr {
+		t.Fatalf("preview: %s", text)
+	}
+
+	// O espelho tem de carregar o que define a nota.
+	if preview.CustomerName == "" || preview.TemplateName == "" || preview.Description == "" {
+		t.Fatalf("espelho incompleto: %+v", preview)
+	}
+	if preview.Amount != "R$ 19.000,00" {
+		t.Errorf("valor do espelho: %q", preview.Amount)
+	}
+	if preview.Competence != "2026-11-04" {
+		t.Errorf("competência do espelho: %q", preview.Competence)
+	}
+	// O mês do serviço é um antes da competência — a confusão que custou caro.
+	if preview.ServiceMonth != "10/2026" {
+		t.Errorf("mês do serviço: %q, esperado 10/2026", preview.ServiceMonth)
+	}
+	if preview.NextDPS != before.NextDPSNumber {
+		t.Errorf("o espelho tem de informar o número que SERÁ usado: %d contra %d", preview.NextDPS, before.NextDPSNumber)
+	}
+
+	// 🛑 O que de fato importa: nada mudou.
+	depois, err := repo.Invoices(ctx)
+	if err != nil {
+		t.Fatalf("listar notas: %v", err)
+	}
+	if len(depois) != len(antes) {
+		t.Fatalf("o espelho criou nota: %d antes, %d depois", len(antes), len(depois))
+	}
+	after, err := repo.Issuer(ctx)
+	if err != nil {
+		t.Fatalf("emitente: %v", err)
+	}
+	if after.NextDPSNumber != before.NextDPSNumber {
+		t.Fatalf("o espelho consumiu número de DPS: %d -> %d", before.NextDPSNumber, after.NextDPSNumber)
+	}
+
+	// Entrada inválida reprova no espelho, antes de gastar qualquer coisa.
+	if isErr, _ := call(t, cs, "preview_invoice", map[string]any{"customer_id": 999, "template_id": 1}, nil); !isErr {
+		t.Error("tomador inexistente deveria reprovar no espelho")
+	}
+}
+
 // TestCancelAndDANFSeTools: cancelamento aceito e recusado, DANFSe gerado
 // buscando o XML e recusado para nota sem chave.
 func TestCancelAndDANFSeTools(t *testing.T) {
@@ -260,8 +331,59 @@ func TestCancelAndDANFSeTools(t *testing.T) {
 	if isErr, text := call(t, cs, "download_danfse", map[string]any{"id": authorized.ID}, &pdf); isErr || pdf.Bytes == 0 {
 		t.Fatalf("DANFSe: %s", text)
 	}
+	// O conteúdo é o produto da ferramenta: tem de voltar em base64, ser um PDF
+	// de verdade e bater com o tamanho informado.
+	content, err := base64.StdEncoding.DecodeString(pdf.ContentBase64)
+	if err != nil || !strings.HasPrefix(string(content), "%PDF") || len(content) != pdf.Bytes {
+		t.Fatalf("conteúdo do PDF: %v, %d bytes contra %d", err, len(content), pdf.Bytes)
+	}
+	if !strings.HasSuffix(pdf.FileName, ".pdf") {
+		t.Fatalf("nome do arquivo: %q", pdf.FileName)
+	}
+	// O XML autorizado vai junto, com o mesmo nome e outra extensão.
+	xml, err := base64.StdEncoding.DecodeString(pdf.XMLBase64)
+	if err != nil || len(xml) == 0 || len(xml) != pdf.XMLBytes {
+		t.Fatalf("conteúdo do XML: %v, %d bytes contra %d", err, len(xml), pdf.XMLBytes)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(string(xml)), "<") {
+		t.Fatalf("XML não parece XML: %.40q", xml)
+	}
+	if pdf.XMLFileName != strings.TrimSuffix(pdf.FileName, ".pdf")+".xml" {
+		t.Fatalf("nome do XML %q não acompanha o do PDF %q", pdf.XMLFileName, pdf.FileName)
+	}
 	if data, err := os.ReadFile(pdf.Path); err != nil || !strings.HasPrefix(string(data), "%PDF") {
 		t.Fatalf("arquivo: %v", err)
+	}
+
+	// Diretório de saída inexistente — o caso medido em 04/11/2026 contra o
+	// servidor remoto, que respondia "no such file or directory" e não entregava
+	// nada. A cópia em disco pode faltar; o PDF, não.
+	noDir := deps
+	noDir.OutputDir = filepath.Join(t.TempDir(), "nao-existe")
+	var orphan DANFSeOut
+	if isErr, text := call(t, session(t, noDir), "download_danfse", map[string]any{"id": authorized.ID}, &orphan); isErr {
+		t.Fatalf("diretório inexistente não pode impedir a entrega: %s", text)
+	}
+	if orphan.Path != "" {
+		t.Errorf("sem gravar em disco, Path tem de ficar vazio: %q", orphan.Path)
+	}
+	if decoded, err := base64.StdEncoding.DecodeString(orphan.ContentBase64); err != nil || !strings.HasPrefix(string(decoded), "%PDF") {
+		t.Fatalf("PDF não veio no conteúdo: %v", err)
+	}
+	if orphan.XMLBytes == 0 || orphan.XMLBase64 == "" {
+		t.Error("o XML também tem de vir sem depender do disco")
+	}
+
+	// Sem XML guardado e com a SEFIN fora do ar, a ferramenta tem de falhar
+	// dizendo o motivo — nunca entregar um PDF vazio como se fosse a nota.
+	offline := deps
+	offline.FetchXML = func(context.Context, domain.Invoice) ([]byte, error) {
+		return nil, errors.New("SEFIN indisponível")
+	}
+	naked := domain.Invoice{Environment: domain.EnvHomologation, Status: domain.StatusAuthorized, AccessKey: "35057082112223330001810000000000003926100000000002"}
+	_ = repo.SaveInvoice(ctx, &naked)
+	if isErr, text := call(t, session(t, offline), "download_danfse", map[string]any{"id": naked.ID}, nil); !isErr || !strings.Contains(text, "SEFIN") {
+		t.Fatalf("falha ao buscar o XML tem de ser reportada: %v %s", isErr, text)
 	}
 	if stored, _ := repo.Invoice(ctx, authorized.ID); len(stored.XML) == 0 {
 		t.Fatal("XML buscado não foi guardado")

@@ -31,9 +31,10 @@ Nunca peça o certificado nem a senha dele: o A1 sai do `pass`.
 | `account_status` | emitente, ambiente, numeração, validade do certificado, o que falta configurar |
 | `list_customers` | tomadores cadastrados (filtra por nome ou documento) |
 | `list_templates` | modelos de serviço: código de tributação, valor e descrição padrão |
+| `preview_invoice` | espelho da nota antes de emitir: não reserva número, não grava, não transmite |
 | `emit_invoice` | emite a nota (exige `idempotency_key`; produção exige `confirm_production`) |
 | `list_invoices` / `show_invoice` | histórico e detalhe (chave, número, status, erro traduzido) |
-| `download_danfse` | gera o PDF do DANFSe e devolve o caminho do arquivo |
+| `download_danfse` | devolve o PDF do DANFSe e o XML autorizado, ambos em base64 |
 | `cancel_invoice` | cancela uma nota autorizada |
 | `list_schedules` | agendamentos mensais e as próximas emissões |
 
@@ -43,13 +44,30 @@ Chame `account_status`. Ele diz o ambiente (**Homologação** não tem valor fis
 tem), a numeração e o que falta configurar. Se `missing` não estiver vazio, resolva isso com o
 dono antes de emitir.
 
+## Antes de emitir: `preview_invoice`
+
+Nota autorizada só se desfaz por cancelamento. **Monte o espelho e espere o dono aprovar** —
+vale igual em produção e em homologação.
+
+```
+preview_invoice(customer_id, template_id, amount, competence, description)
+```
+
+Devolve ambiente (`is_production`), emitente, tomador, modelo, `service_code`, `competence`,
+**`service_month`** (= competência − 1 mês, o mês do serviço), `amount`, a `description`
+integral e `next_dps_number`. **Não reserva número, não grava e não transmite.**
+
+Mostre o espelho com a descrição inteira — é o campo que mais erra e o erro só aparece no PDF
+depois de autorizada. Só com o "sim" do dono, chame `emit_invoice` com os mesmos campos mais a
+`idempotency_key` (e `confirm_production` em produção).
+
 ## Emitir — sempre nesta ordem
 
 1. Ache o tomador em `list_customers` e o modelo em `list_templates`. Não invente ID.
 2. Monte o resumo e **mostre ao dono**: tomador (nome e documento), modelo, valor, competência,
    descrição e ambiente. Valor e competência vazios usam o padrão do modelo e o dia de hoje —
    diga isso no resumo, não deixe implícito.
-3. Só com o "sim" dele, chame `emit_invoice` com uma `idempotency_key` nova e estável (por
+3. Só com o "sim" dele — dado sobre o espelho do `preview_invoice` — chame `emit_invoice` com uma `idempotency_key` nova e estável (por
    exemplo `tomador-AAAA-MM-valor`). Em produção, `confirm_production: true` — e só se ele
    confirmou que é produção.
 4. Leia o `status` da resposta:
@@ -75,7 +93,21 @@ dono antes de emitir.
 ## DANFSe
 
 `download_danfse` gera o PDF localmente (a API de DANFSe do ADN está suspensa desde 03/08/2026,
-NT-008) e devolve o caminho do arquivo. Só nota autorizada ou cancelada.
+NT-008) e devolve **o conteúdo**, não um caminho:
+
+| Campo | O que é |
+|---|---|
+| `content_base64` · `bytes` · `file_name` | o PDF do DANFSe |
+| `xml_base64` · `xml_bytes` · `xml_file_name` | o XML autorizado pela SEFIN, que é o documento fiscal em si |
+| `path` | só aparece quando o servidor conseguiu gravar uma cópia em disco |
+
+Só nota autorizada ou cancelada.
+
+⚠️ **`path` não serve ao cliente quando o servidor é remoto.** Até 04/11/2026 esta ferramenta
+devolvia apenas o caminho e falhava inteira se não conseguisse gravar: contra
+`nfse.bassi.engineer` a resposta era `open /home/nonroot/Downloads/…: no such file or
+directory`, e não havia como o agente obter o PDF. Hoje o conteúdo é o produto e a cópia em
+disco é opcional — travado no teste do `mcpserver` com o diretório inexistente.
 
 ## Erros comuns da SEFIN
 

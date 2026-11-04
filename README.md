@@ -255,11 +255,58 @@ Ferramentas expostas (mesmo catálogo no stdio e no HTTP):
 | `account_status` | não | emitente, ambiente, numeração, validade do certificado, pendências de configuração |
 | `list_customers` · `list_templates` · `list_invoices` · `list_schedules` | não | consultas |
 | `show_invoice` | não | nota com status, chave e erro da SEFIN traduzido |
-| `download_danfse` | não | gera o PDF e devolve o caminho |
+| `download_danfse` | não | PDF do DANFSe e XML autorizado, ambos em base64 |
+| `preview_invoice` | não | **espelho da nota antes de emitir** — ver abaixo |
 | `emit_invoice` | **sim** | emite; aceita `idempotency_key` (repetir devolve a mesma nota) |
 | `cancel_invoice` | **sim** | cancela na SEFIN — irreversível |
 
 Local (stdio): o [`.mcp.json`](.mcp.json) da raiz já aponta para `bin/nfse mcp`. Remoto: gere um token em *Integrações* e use `https://nfse.bassi.engineer/mcp`. `nfse skill` imprime a skill do agente.
+
+#### `preview_invoice` — conferir antes que a nota exista
+
+Nota autorizada não tem desfazer: só cancelamento, que fica no histórico do documento, pede
+justificativa e tem prazo. `preview_invoice` devolve **tudo o que a emissão vai mandar**, sem
+emitir.
+
+Entrada — os mesmos campos de `emit_invoice`, menos os dois que só existem ao emitir de verdade:
+
+```json
+{ "customer_id": 2, "template_id": 2, "amount": "19.000,00",
+  "competence": "2026-11-04", "description": "- Referente a prestação de serviço ..." }
+```
+
+`amount`, `competence` e `description` vazios recebem os mesmos padrões do `emit_invoice` (valor
+do modelo, dia de hoje, descrição do modelo com `{mes}`/`{ano}` resolvidos) — o espelho mostra o
+que **de fato** iria, não o que foi digitado.
+
+Saída:
+
+| Campo | O que é |
+|---|---|
+| `environment` · `is_production` | ambiente, e o booleano para destacar nota real |
+| `issuer_name` · `issuer_cnpj` | emitente |
+| `customer_name` · `customer_document` | tomador |
+| `template_name` · `service_code` | modelo e código de tributação nacional |
+| `competence` | data que irá na DPS (`AAAA-MM-DD`) |
+| **`service_month`** | mês do **serviço** = competência − 1 mês (`MM/AAAA`) |
+| `amount` | valor formatado em BRL |
+| `description` | descrição **integral**, como sairá no documento |
+| `next_dps_number` | número que *será* usado — e que continua livre após a chamada |
+| `notice` | aviso pronto, com alerta extra quando o emitente está em produção |
+
+Garantias, verificadas em teste: **não reserva número de DPS, não grava no banco, não assina com
+o A1 e não transmite à SEFIN.** Não pede `idempotency_key` nem `confirm_production` — não há
+idempotência a garantir nem produção a confirmar em algo que não cria nota; a guarda de produção
+continua inteira em `emit_invoice`.
+
+Internamente, `Preview` e `Emit` chamam o **mesmo** `app.resolve`, que lê e valida emitente,
+tomador, modelo, valor, competência e descrição. É proposital: espelho que não passa pelo caminho
+da emissão pode divergir dela, e espelho que mente é pior que nenhum. Detalhe do desenho,
+diagrama e limites em [`docs/architecture.md`](docs/architecture.md), seção *Conferir antes de
+emitir*.
+
+Fluxo recomendado para agente: `preview_invoice` → mostrar ao dono → **aprovação explícita** →
+`emit_invoice` com os mesmos campos.
 
 ### 7.3 API REST (integração de sistemas)
 

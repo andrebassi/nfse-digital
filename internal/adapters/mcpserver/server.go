@@ -6,6 +6,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -46,6 +47,7 @@ func New(d Deps) *mcp.Server {
 	mcp.AddTool(server, tool("list_templates"), h.listTemplates)
 	mcp.AddTool(server, tool("list_invoices"), h.listInvoices)
 	mcp.AddTool(server, tool("show_invoice"), h.showInvoice)
+	mcp.AddTool(server, tool("preview_invoice"), h.previewInvoice)
 	mcp.AddTool(server, tool("emit_invoice"), h.emitInvoice)
 	mcp.AddTool(server, tool("cancel_invoice"), h.cancelInvoice)
 	mcp.AddTool(server, tool("download_danfse"), h.downloadDANFSe)
@@ -239,6 +241,92 @@ type EmitInput struct {
 // emitInvoice emite pela mesma regra da CLI. Rejeição e falha de comunicação
 // voltam como resultado legível; só dado inválido e guarda de produção voltam
 // como erro da ferramenta.
+// PreviewInput é a entrada do espelho: os mesmos campos da emissão, menos os
+// dois que só fazem sentido ao emitir de verdade — não há idempotência a
+// garantir nem produção a confirmar em algo que não cria nota.
+type PreviewInput struct {
+	CustomerID  int64  `json:"customer_id" jsonschema:"ID do tomador (list_customers)"`
+	TemplateID  int64  `json:"template_id" jsonschema:"ID do modelo de serviço (list_templates)"`
+	Amount      string `json:"amount,omitempty" jsonschema:"valor, como 19000.00 ou 19.000,00; vazio usa o do modelo"`
+	Competence  string `json:"competence,omitempty" jsonschema:"data de competência AAAA-MM-DD; vazio usa hoje"`
+	Description string `json:"description,omitempty" jsonschema:"descrição do serviço; vazio usa a do modelo, com {mes} e {ano} resolvidos"`
+}
+
+// PreviewOut é o espelho da nota: tudo o que será enviado, com o ambiente em
+// destaque, antes de existir documento fiscal.
+type PreviewOut struct {
+	Environment  string `json:"environment"`
+	IsProduction bool   `json:"is_production"`
+	IssuerName   string `json:"issuer_name"`
+	IssuerCNPJ   string `json:"issuer_cnpj"`
+	CustomerName string `json:"customer_name"`
+	CustomerDoc  string `json:"customer_document"`
+	TemplateName string `json:"template_name"`
+	ServiceCode  string `json:"service_code"`
+	Competence   string `json:"competence"`
+	ServiceMonth string `json:"service_month"`
+	Amount       string `json:"amount"`
+	Description  string `json:"description"`
+	NextDPS      int64  `json:"next_dps_number"`
+	Notice       string `json:"notice"`
+}
+
+// previewInvoice mostra a nota ANTES de emitir. Não reserva número, não grava
+// e não transmite: o número da DPS informado é o que SERÁ usado, e continua
+// disponível depois desta chamada.
+func (h handlers) previewInvoice(ctx context.Context, req *mcp.CallToolRequest, in PreviewInput) (*mcp.CallToolResult, PreviewOut, error) {
+	h.touch(ctx, req, "preview_invoice")
+	template, err := h.Service.Repo.Template(ctx, in.TemplateID)
+	if err != nil {
+		return nil, PreviewOut{}, fmt.Errorf("modelo #%d: %w", in.TemplateID, err)
+	}
+	// Os mesmos padrões do emit_invoice, para o espelho não mostrar uma coisa
+	// e a emissão mandar outra.
+	now := h.Service.Now().In(h.Service.Location)
+	if in.Competence == "" {
+		in.Competence = now.Format("2006-01-02")
+	}
+	if in.Amount == "" {
+		in.Amount = template.DefaultAmount.InputValue()
+	}
+	if in.Description == "" {
+		competence, _ := time.ParseInLocation("2006-01-02", in.Competence, h.Service.Location)
+		in.Description = domain.RenderDescription(template.Description, competence)
+	}
+	resolved, err := h.Service.Preview(ctx, app.EmitInput{
+		CustomerID: in.CustomerID, TemplateID: in.TemplateID, Amount: in.Amount,
+		Competence: in.Competence, Description: in.Description,
+	})
+	if err != nil {
+		return nil, PreviewOut{}, err
+	}
+	production := resolved.Issuer.Environment == domain.EnvProduction
+	notice := "espelho: nada foi emitido nem gravado. Mostre ao dono e só chame emit_invoice depois do sim dele."
+	if production {
+		notice = "🛑 PRODUÇÃO: a emissão gera nota fiscal REAL, que só se desfaz por cancelamento. " + notice
+	}
+	out := PreviewOut{
+		Environment:  resolved.Issuer.Environment.Label(),
+		IsProduction: production,
+		IssuerName:   resolved.Issuer.LegalName,
+		IssuerCNPJ:   resolved.Issuer.CNPJ,
+		CustomerName: resolved.Customer.Name,
+		CustomerDoc:  resolved.Customer.Document,
+		TemplateName: resolved.Template.Name,
+		ServiceCode:  resolved.Template.NationalTaxCode,
+		Competence:   resolved.Competence.Format("2006-01-02"),
+		ServiceMonth: resolved.Competence.AddDate(0, -1, 0).Format("01/2006"),
+		Amount:       resolved.Amount.FormatBRL(),
+		Description:  in.Description,
+		Notice:       notice,
+	}
+	// O número que SERÁ usado, sem reservá-lo.
+	if issuer, err := h.Service.Repo.Issuer(ctx); err == nil {
+		out.NextDPS = issuer.NextDPSNumber
+	}
+	return nil, out, nil
+}
+
 func (h handlers) emitInvoice(ctx context.Context, req *mcp.CallToolRequest, in EmitInput) (*mcp.CallToolResult, InvoiceOut, error) {
 	h.touch(ctx, req, "emit_invoice")
 	if strings.TrimSpace(in.IdempotencyKey) == "" {
@@ -295,10 +383,20 @@ func (h handlers) cancelInvoice(ctx context.Context, req *mcp.CallToolRequest, i
 	return nil, out, nil
 }
 
-// DANFSeOut é o caminho do PDF gerado.
+// DANFSeOut entrega o PDF do DANFSe. O conteúdo em base64 é o produto da
+// ferramenta: o cliente MCP costuma rodar em outra máquina que o servidor, e lá
+// um caminho de arquivo não alcança nada. Path é só a cópia em disco de quem
+// roda o servidor localmente, e por isso é opcional.
 type DANFSeOut struct {
-	Path  string `json:"path"`
-	Bytes int    `json:"bytes"`
+	FileName      string `json:"file_name"`
+	ContentBase64 string `json:"content_base64"`
+	Bytes         int    `json:"bytes"`
+	Path          string `json:"path,omitempty"`
+	// O XML autorizado pela SEFIN é o documento fiscal em si — o PDF é só a
+	// representação dele. Vai junto porque o arquivamento guarda os dois.
+	XMLFileName string `json:"xml_file_name"`
+	XMLBase64   string `json:"xml_base64"`
+	XMLBytes    int    `json:"xml_bytes"`
 }
 
 // downloadDANFSe gera o PDF localmente (a API do ADN está suspensa, NT-008).
@@ -327,11 +425,22 @@ func (h handlers) downloadDANFSe(ctx context.Context, req *mcp.CallToolRequest, 
 	if err != nil {
 		return nil, DANFSeOut{}, err
 	}
-	path := filepath.Join(h.OutputDir, danfse.FileName(data))
-	if err := os.WriteFile(path, pdf, 0o600); err != nil {
-		return nil, DANFSeOut{}, err
+	name := danfse.FileName(data)
+	out := DANFSeOut{
+		FileName:      name,
+		ContentBase64: base64.StdEncoding.EncodeToString(pdf),
+		Bytes:         len(pdf),
+		XMLFileName:   strings.TrimSuffix(name, ".pdf") + ".xml",
+		XMLBase64:     base64.StdEncoding.EncodeToString(invoice.XML),
+		XMLBytes:      len(invoice.XML),
 	}
-	return nil, DANFSeOut{Path: path, Bytes: len(pdf)}, nil
+	// A cópia em disco é conveniência de quem roda o servidor na própria
+	// máquina. Num container o diretório pode não existir, e isso não pode
+	// impedir a entrega do PDF: falhou, segue sem Path.
+	if path := filepath.Join(h.OutputDir, name); os.WriteFile(path, pdf, 0o600) == nil {
+		out.Path = path
+	}
+	return nil, out, nil
 }
 
 // ScheduleOut é um agendamento com as próximas emissões.

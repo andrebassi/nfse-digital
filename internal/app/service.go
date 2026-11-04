@@ -62,10 +62,21 @@ type EmitInput struct {
 
 // Emit valida o pedido, reserva o número da DPS, chama o emissor e grava o
 // resultado. Erros de digitação voltam como domain.FieldErrors sem gastar número.
-func (s *Service) Emit(ctx context.Context, input EmitInput) (domain.Invoice, error) {
-	if previous, found, err := s.byIdempotencyKey(ctx, input.IdempotencyKey); err != nil || found {
-		return previous, err
-	}
+// Resolved são as peças de uma emissão já validadas: o que Emit usa para
+// montar a nota e o que Preview mostra ao dono antes de existir nota alguma.
+type Resolved struct {
+	Issuer     domain.Issuer
+	Customer   domain.Customer
+	Template   domain.Template
+	Amount     domain.Money
+	Competence time.Time
+}
+
+// resolve lê e valida tudo o que a emissão precisa, sem reservar número, sem
+// gravar e sem transmitir. Emit e Preview compartilham esta função de
+// propósito: espelho que não passa pelo mesmo caminho do envio pode divergir
+// do que é emitido, e aí deixa de servir para conferir.
+func (s *Service) resolve(ctx context.Context, input EmitInput) (Resolved, error) {
 	errs := domain.FieldErrors{}
 	issuer, err := s.Repo.Issuer(ctx)
 	switch {
@@ -73,7 +84,7 @@ func (s *Service) Emit(ctx context.Context, input EmitInput) (domain.Invoice, er
 		// Primeiro uso com banco vazio: o dono ainda não configurou o emitente.
 		errs["issuer"] = "configure o emitente em Configurações antes de emitir"
 	case err != nil:
-		return domain.Invoice{}, fmt.Errorf("ler emitente: %w", err)
+		return Resolved{}, fmt.Errorf("ler emitente: %w", err)
 	}
 	customer, err := s.Repo.Customer(ctx, input.CustomerID)
 	if err != nil {
@@ -95,8 +106,33 @@ func (s *Service) Emit(ctx context.Context, input EmitInput) (domain.Invoice, er
 		errs["description"] = "informe a descrição do serviço"
 	}
 	if len(errs) > 0 {
-		return domain.Invoice{}, errs
+		return Resolved{}, errs
 	}
+	return Resolved{Issuer: issuer, Customer: customer, Template: template, Amount: amount, Competence: competence}, nil
+}
+
+// Preview monta o espelho da nota: as mesmas leituras e validações da emissão,
+// e nada além disso. Não reserva número de DPS, não grava, não assina e não
+// transmite — serve para o dono conferir ANTES de existir documento fiscal,
+// porque nota emitida só se desfaz por cancelamento.
+//
+// A guarda de produção NÃO se aplica aqui: o espelho existe justamente para
+// decidir se confirma, e exigir a confirmação antes de poder ver seria o
+// contrário do propósito.
+func (s *Service) Preview(ctx context.Context, input EmitInput) (Resolved, error) {
+	return s.resolve(ctx, input)
+}
+
+func (s *Service) Emit(ctx context.Context, input EmitInput) (domain.Invoice, error) {
+	if previous, found, err := s.byIdempotencyKey(ctx, input.IdempotencyKey); err != nil || found {
+		return previous, err
+	}
+	resolved, err := s.resolve(ctx, input)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+	issuer, customer, template := resolved.Issuer, resolved.Customer, resolved.Template
+	amount, competence := resolved.Amount, resolved.Competence
 	// A guarda vem antes de reservar número: recusa não gasta DPS.
 	if err := EnsureEnvironment(issuer.Environment, input.ConfirmProduction); err != nil {
 		return domain.Invoice{}, err
